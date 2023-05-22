@@ -14,6 +14,8 @@ networks <- replicate(nnets, {
          target = as.integer(ends(g, E(g))[, 2]))
 }, simplify = FALSE)
 
+
+if (interactive()) {
 # Reading one to check the result
 net <- graph_from_edgelist(as.matrix(as.data.frame(networks[[1]])))
 
@@ -30,7 +32,7 @@ table(degree(net)) |>
 
 # Saving the figure
 ggsave("data/degree-distribution.pdf", width = 5, height = 5)
-
+}
 # hist(, xlab = "Degree", breaks = 100)
 # par(op)
 

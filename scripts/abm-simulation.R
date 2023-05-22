@@ -1,6 +1,6 @@
 #!/bin/sh
-#SBATCH --account=vegayon-np-shared
-#SBATCH --partition=vegayon-np-shared
+#SBATCH --account=vegayon-np
+#SBATCH --partition=vegayon-shared-np
 #SBATCH --job-name=abm-simulation-main
 #SBATCH --output=abm-simulation-%j.out
 
@@ -19,9 +19,8 @@ Njobs <- 20L
 
 # Set the slurmR options
 SB_OPTS <- list(
-    account = "vegayon-np-shared",
-    partition = "vegayon-np-shared",
-    job_name = "abm-simulation"
+    account    = "vegayon-np",
+    partition  = "vegayon-shared-np"
     )
 
 # Sampling infectiousness from a beta distribution
@@ -40,13 +39,15 @@ beta <- 2
 recovery_rate <- rbeta(nsims, alpha, beta)
 
 # Set the temporary path of slurmR
-opts_slurmR$set_tmp_path("/tmp")
+# opts_slurmR$set_tmp_path("/tmp")
 
 # Group infectiousness and recovery_rate into a list of length
 # nsims featuring one element per simulation
 params <- Map(\(a, b, n, i) {
-    c(infectiousness = a, recovery_rate = b, net = n, inc_days = i)
+    list(infectiousness = a, recovery_rate = b, net = n, inc_days = i)
 }, a = infectiousness, b = recovery_rate, n = networks, i = incubation_days)
+
+# opts_slurmR$debug_on()
 
 res <- Slurm_lapply(params, FUN = \(param) {
 
@@ -61,8 +62,10 @@ res <- Slurm_lapply(params, FUN = \(param) {
     # Adding the network to model
     agents_from_edgelist(
         model,
-        source = params$net$source,
-        target = params$net$target
+        size   = 1000L,
+        source = param$n$source - 1L,
+        target = param$n$target - 1L,
+        directed = FALSE
         )
 
     # Running the simulation
@@ -74,8 +77,10 @@ res <- Slurm_lapply(params, FUN = \(param) {
         repnum  = get_reproductive_number(model)
     )
 
-}, njobs = Njobs, sbatch_opts = SB_OPTS)
+}, njobs = Njobs, sbatch_opt = SB_OPTS, job_name = "abm-simulation-lapply")
 
 
 # Saving the results under data/
 saveRDS(res, file = "data/results.rds")
+
+
