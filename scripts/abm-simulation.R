@@ -1,3 +1,9 @@
+#!/bin/sh
+#SBATCH --account=vegayon-np-shared
+#SBATCH --partition=vegayon-np-shared
+#SBATCH --job-name=abm-simulation-main
+#SBATCH --output=abm-simulation-%j.out
+
 library(epiworldR)
 library(slurmR)
 
@@ -5,10 +11,10 @@ library(slurmR)
 set.seed(1231)
 
 # Load the simulated networks from the RDS file
-networks <- readRDS("data/networks.rds")
+networks <- readRDS("data/networks-scalefree.rds")
 
 # Set the parameters
-nsims <- 1000L
+nsims <- 100L
 Njobs <- 20L
 
 # Set the slurmR options
@@ -65,8 +71,11 @@ res <- Slurm_lapply(params, FUN = \(param) {
     # Get the results
     list(
         history = get_hist_total(model),
-        repnum = get_reproductive_number(model)
+        repnum  = get_reproductive_number(model)
     )
 
 }, njobs = Njobs, sbatch_opts = SB_OPTS)
 
+
+# Saving the results under data/
+saveRDS(res, file = "data/results.rds")
