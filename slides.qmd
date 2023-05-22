@@ -1,0 +1,108 @@
+---
+title: Simulation Epidemiology
+subtitle: A simulation study on the effect of network structure on epidemiological measurements
+author: 
+    - George G. Vega Yon, Ph.D.
+    - Chong Zhang
+    - Alun Thomas, Ph.D.
+    - Matthew Samore, M.D.
+    - Karim Khader, Ph.D.
+institute: University of Utah<br>Salt Lake City, UT
+date: 2023-06-28
+format:
+    revealjs:
+        slide-number: true
+---
+
+
+
+# Introduction
+
+## Main question
+
+How important is network structure for the spreading of infectious diseases?[^weknow]
+
+[^weknow]: We already know that it is important, but how important?
+
+In this study, we will look into key epidemiological measurements as a function of network feature.
+
+## A simple example
+
+- The reproduction number $R_0$ is a key epidemiological measurement.
+
+- It is defined as the average number of secondary infections caused by a single infected individual.
+
+- R0 is used by public health officials to determine the severity of an outbreak.
+
+- Yet how does it depend on network structure?
+
+## A simple example: small world model
+
+- Consider a simulation using the small world model.
+
+- In the case of no rewiring, the network is a regular lattice.
+
+- Under this scenario, we can compute the reproduction number analytically.
+
+- The problem: the analytical solution doesn't align with the expectation.
+
+
+---
+
+- Under the small-world network model, the reproduction number is expected to be 1.
+
+- Yet, contrary to what we would expect, the disease spreads very quickly.
+
+- This simple observation suggests we should be careful about what R0 tells us.
+
+---
+
+- To test this, we conducted a large simulation study looking into the following epidemiological measurements:
+
+    - Reproductive number.
+    - Dispersion parameter.
+    - Attack rate.
+    - Peak prevalence.
+    - Peak time.
+    - Final size.
+    - Duration of the outbreak.
+
+# Simulation Study
+
+## Setup
+
+- We have a population of 1000 individuals.
+
+- We have a disease that is transmitted by contact.
+
+- We used a Susceptible-Exposed-Infected-Recovered [SEIR] model.
+
+- For each SEIR simulation we:
+
+    a. We generated a network with a given set of parameters.
+
+    b. We simulated the disease outbreak on the network.
+
+    c. We computed the epidemiological measurements.
+
+
+## Preliminary results
+
+## Discussion
+
+- We care about networks.
+
+- Different networks have different effects the spreading of infectious diseases.
+
+- We need to understand how network structure affects epidemiological measurements.
+
+- We developed a simulation study to look into this question.
+
+- We found that network structure has a significant effect on epidemiological measurements.
+
+
+## Fin
+
+::: {style="font-size: 120%; text-align: center;"}
+Thank you!
+:::
