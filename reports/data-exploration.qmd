@@ -37,8 +37,7 @@ net <- graph_from_data_frame(
 )
 
 nplot(
-  net,
-  skip.vertex = TRUE
+  net
   ) # Many isolates
 ```
 
