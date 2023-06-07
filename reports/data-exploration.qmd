@@ -1,6 +1,6 @@
 ---
 title: "Data Exploration"
-format: html
+format: pdf
 ---
 
 ```{r}
@@ -9,6 +9,7 @@ library(netplot)
 library(data.table)
 ```
 
+::: {}
 
 ```{r}
 #| label: reading-nets
@@ -36,8 +37,11 @@ net <- graph_from_data_frame(
   directed = FALSE, vertices = as.data.frame(students)
 )
 
+# Getting only connected individuals
+net_with_no_isolates <- induced_subgraph(net, which(degree(net) > 0))
+
 nplot(
-  net
+  net_with_no_isolates
   ) # Many isolates
 ```
 
