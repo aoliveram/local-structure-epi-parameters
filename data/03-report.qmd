@@ -1,7 +1,142 @@
 ---
 format: gfm
-title: ABC
+title: Looking into the data
+embed-resources: true
 ---
 
 
+Reading the data
+
+```{r}
+library(data.table)
+library(ggplot2)
+
+simstats <- fread("data/02-dataprep-network-stats.csv.gz")
+```
+
+## Visual inspection
+
+```{r}
+ggplot(simstats[final_preval > 0]) +
+  geom_histogram(aes(x = final_preval)) +
+  scale_y_log10() +
+  labs(
+    x = "Final prevalence",
+    y = "Outbreak size\n(log10)",
+  )
+
+ggplot(simstats) +
+  geom_point(aes(x = rt, y = ergm_triangle)) 
+
+ggplot(simstats) +
+  geom_point(aes(x = rt, y = final_preval)) +
+  scale_y_log10() +
+  labs(
+    x = "Reproduction number",
+    y = "Outbreak size\n(log10)",
+  )
+
+# A group of figures showing the outbreak size as 
+# a function of the igraph_* variables in the dataset simstats
+igraph_vars <- grep("^igraph", names(simstats), value = TRUE)
+
+igraph_vars <- setdiff(
+  igraph_vars, c(
+    "igraph_diameter",
+    "igraph_components"
+    ))
+
+graphs <- list()
+for (igraph_var in igraph_vars) {
+  graphs[[igraph_var]] <-
+    ggplot(simstats) +
+      geom_point(aes_string(x = "final_preval", y = igraph_var)) +
+      scale_y_log10() +
+      labs(
+        x = "Outbreak size (log10)",
+        y = igraph_var,
+      )
+}
+
+# Build the same graphs for the ergm_* variables
+ergm_vars <- grep("^ergm", names(simstats), value = TRUE)
+
+graphs_ergm <- list()
+for (ergm_var in ergm_vars) {
+  graphs_ergm[[ergm_var]] <-
+    ggplot(simstats) +
+      geom_point(aes_string(x = "final_preval", y = ergm_var)) +
+      scale_y_log10() +
+      labs(
+        x = "Outbreak size (log10)",
+        y = ergm_var,
+      )
+}
+
+# Use the patchwork R package to combine the graphs
+library(patchwork)
+wrap_plots(graphs, ncol = 4)
+wrap_plots(graphs_ergm, ncol = 4)
+```
+
+## Model fitting
+
+```{r}
+# Scale all the variables starting with igraph in simstats
+igraph_vars <- grep("^igraph", names(simstats), value = TRUE)
+simstats[, (igraph_vars) := lapply(.SD, scale), .SDcols = igraph_vars]
+
+# Do the same with the vars starting with ergm
+ergm_vars <- grep("^ergm", names(simstats), value = TRUE)
+simstats[, (ergm_vars) := lapply(.SD, scale), .SDcols = ergm_vars]
+```
+
+```{r}
+library(texreg)
+
+vars <- c(ergm_vars, igraph_vars)
+
+# Main parameters
+vars <- c(vars, "infectiousness", "inc_days", "recovery_rate")
+
+baseline <- paste("~", paste(vars, collapse = " + ")) |>
+  as.formula()
+```
+
+```{r}
+
+# Using the update function, run a series of models
+# replacing the lhs of the formula with rt, peak_time, and final_preval
+
+depvars <- c(
+  "peak_time", "peak_preval", "rt", "dispersion", "final_preval")
+
+model_peak_time <- update(baseline, paste(depvars[1], "~."))
+model_peak_preval <- update(baseline, paste(depvars[2], "~."))
+model_rt <- update(baseline, paste(depvars[3], "~."))
+model_dispersion <- update(baseline, paste(depvars[4], "~."))
+model_final_preval <- update(baseline, paste(depvars[5], "~."))
+```
+
+```{r}
+#| echo: false
+# Run the models
+model_peak_preval <- glm(model_peak_preval, data = simstats)
+model_peak_time <- glm(model_peak_time, data = simstats)
+model_rt <- glm(model_rt, data = simstats)
+model_dispersion <- glm(model_dispersion, data = simstats)
+model_final_preval <- glm(model_final_preval, data = simstats, family = poisson())
+```
+
+```{r}
+#| output: asis
+texreg::knitreg(
+  list(
+    peak_preval = model_peak_preval,
+    peak_time = model_peak_time,
+    rt = model_rt,
+    dispersion = model_dispersion,
+    final_preval = model_final_preval
+  ), single.row = TRUE)
+```
 
