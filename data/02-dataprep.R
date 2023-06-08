@@ -66,20 +66,20 @@ simres <- lapply(simres, \(x) {
 
   if (inherits(x, "error"))
     return(NULL)
+  
+  history <- data.table(x$history)
 
-  # Computing the peak prevalence
-  peak_preval <- with(x$history, counts[state == "Infected"])
-  peak_time   <- which.max(peak_preval)
-  peak_preval <- peak_preval[peak_time]
-  rt          <- with(x$repnum, sum(avg * n, na.rm = TRUE)/
-    sum(n, na.rm = TRUE))
+  # Index of the max prevalence
+  peak_idx    <- which.max(x$incidence$Exposed)
+  peak_preval <- x$incidence$Exposed[peak_idx]
+  peak_time   <- as.integer(rownames(x$incidence)[peak_idx])
+  
+  # Rt in the peak
+  rt_idx     <- with(x$repnum, which.min(abs(peak_time - date)))
+  rt         <- x$repnum$avg[rt_idx]
+  dispersion <- 1/x$repnum$sd[rt_idx]^2
 
-  dispersion  <- with(x$repnum, sum(sd * n, na.rm = TRUE)/
-    sum(n, na.rm = TRUE)) # Need to work on this
-
-  dispersion  <- 1/dispersion^2
-
-  gentime     <- with(x$gentime, sum(avg * n, na.rm = TRUE)/
+  gentime <- with(x$gentime, sum(avg * n, na.rm = TRUE)/
     sum(n, na.rm = TRUE))
 
   # Final prevalence
@@ -89,13 +89,17 @@ simres <- lapply(simres, \(x) {
 
   # Return a data.table
   data.table(
-    netid        = x$netid,
-    peak_time    = peak_time,
-    peak_preval  = peak_preval,
-    rt           = rt,
-    dispersion   = dispersion,
-    gentime      = gentime,
-    final_preval = final_preval
+    simid          = x$simid,
+    netid          = x$netid,
+    peak_time      = peak_time,
+    peak_preval    = peak_preval,
+    rt             = rt,
+    dispersion     = dispersion,
+    gentime        = gentime,
+    final_preval   = final_preval,
+    infectiousness = x$param$infectiousness,
+    inc_days       = x$param$inc_days,
+    recovery_rate  = x$param$recovery_rate
   )
 
 }) |> rbindlist()
