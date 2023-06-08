@@ -33,18 +33,21 @@ SB_OPTS <- list(
     )
 
 # Sampling infectiousness from a beta distribution
-alpha <- 2
-beta <- 5
+# This has mean 0.3 and sd 0.05
+alpha <- 20
+beta <- 50
 infectiousness <- rbeta(nsims, alpha, beta)
 
-# Sampling incubation days from a beta distribution
-alpha <- 2
-beta <- 5
-incubation_days <- rbeta(nsims, alpha, beta)
+# Sampling incubation days from a Gamma distribution
+# This has mean 7 and variance 7
+alpha <- 7
+beta <- 1
+incubation_days <- rgamma(nsims, alpha, beta)
 
 # Sampling recovery rate from a beta distribution
-alpha <- 5
-beta <- 2
+# This has mean 0.3 and variance 0.02
+alpha <- 2
+beta <- 5
 recovery_rate <- rbeta(nsims, alpha, beta)
 
 # Set the temporary path of slurmR
@@ -55,18 +58,20 @@ recovery_rate <- rbeta(nsims, alpha, beta)
 net_ids <- sample.int(length(elists), nsims, replace = TRUE)
 seeds   <- sample.int(.Machine$integer.max, nsims, replace = TRUE)
 
-params <- Map(\(a, b, n, i, netid) {
+params <- Map(\(a, b, n, i, netid, simid) {
   list(
     netid = netid, infectiousness = a, recovery_rate = b,
-    net = n, inc_days = i, seed = seeds[netid],
-    size = network::network.size(networks[[netid]])
+    net = n, inc_days = i, seed = seeds[simid],
+    size = network::network.size(networks[[netid]]),
+    simid = simid
     )
   },
   a = infectiousness,
   b = recovery_rate,
   i = incubation_days,
   n = elists[net_ids],
-  netid = net_ids
+  netid = net_ids,
+  simid = 1:nsims
   )
 
 # Sampling
@@ -99,11 +104,13 @@ res <- Slurm_lapply(params, FUN = \(param) {
 
     # Get the results
     list(
+      simid     = param$simid,
       netid     = param$netid,
       history   = get_hist_total(model),
       repnum    = plot_reproductive_number(model, plot = FALSE),
       incidence = plot_incidence(model, plot = FALSE),
-      gentime   = plot_generation_time(model, plot = FALSE)
+      gentime   = plot_generation_time(model, plot = FALSE),
+      params    = param
     )
   }, error = function(e) e)
 
