@@ -20,6 +20,62 @@ ncores <- 30
 networks <- readRDS("data/Simulated_1000_networks.rds")
 networks <- unclass(networks)
 
+# Reading in the edgelists sf, sw, r
+networks_sf <- readRDS("data/Simulated_1000_networks_sf.rds")
+networks_sw <- readRDS("data/Simulated_1000_networks_sw.rds")
+networks_r <- readRDS("data/Simulated_1000_networks_r.rds")
+
+# Turning them into undirected networks
+networks_sf <- lapply(networks_sf, as.network, directed = FALSE)
+networks_sw <- lapply(networks_sw, as.network, directed = FALSE)
+networks_r <- lapply(networks_r, as.network, directed = FALSE)
+
+# Adding the node attributes from networks to sf, sw, r
+networks_sf <- Map(\(a,b) {
+  
+  # Iterating over the vertex attributes
+  for (i in list.vertex.attributes(a)) {
+    # Adding the vertex attributes to b
+    b <- set.vertex.attribute(b, i, get.vertex.attribute(a, i))
+  }
+
+  # Returning the network
+  b
+
+}, a = networks, b = networks_sf)
+
+networks_sw <- Map(\(a,b) {
+  
+  # Iterating over the vertex attributes
+  for (i in list.vertex.attributes(a)) {
+    # Adding the vertex attributes to b
+    b <- set.vertex.attribute(b, i, get.vertex.attribute(a, i))
+  }
+
+  # Returning the network
+  b
+
+}, a = networks, b = networks_sw)
+
+networks_r <- Map(\(a,b) {
+  
+  # Iterating over the vertex attributes
+  for (i in list.vertex.attributes(a)) {
+    # Adding the vertex attributes to b
+    b <- set.vertex.attribute(b, i, get.vertex.attribute(a, i))
+  }
+
+  # Returning the network
+  b
+
+}, a = networks, b = networks_r)
+
+# Combining the networks
+networks <- c(networks, networks_sf, networks_sw, networks_r)
+
+# Removing the sf, sw, r networks (to save memory)
+rm(networks_sf, networks_sw, networks_r)
+
 # # Taking a sample of 100 networks
 # set.seed(123)
 # networks <- networks[sample(1:1000, 100)]

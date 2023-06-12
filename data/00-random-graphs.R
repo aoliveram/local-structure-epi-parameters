@@ -26,19 +26,19 @@ networks_i <- parallel::mclapply(networks, asIgraph, mc.cores = ncores)
 # Simulating scalefree networks with same density and size
 # as the original networks
 networks_sf <- parallel::mclapply(networks_i, \(n) {
-  igraph::sample_pa(network::network.size(n), power = 1, m = igraph::ecount(n))
+  igraph::sample_pa(igraph::vcount(n), power = 1, m = igraph::ecount(n))
 }, mc.cores = ncores)
 
 # Simulating smallworkd networks with same density and size
 # as the original networks
 networks_sw <- parallel::mclapply(networks_i, \(n) {
-  igraph::sample_smallworld(network::network.size(n), dim = 1, nei = 2, p = 0.5)
+  igraph::sample_smallworld(igraph::vcount(n), dim = 1, nei = 2, p = 0.5)
 }, mc.cores = ncores)
 
 # Simulating random networks with same density and size
 # as the original networks
 networks_r <- parallel::mclapply(networks_i, \(n) {
-  igraph::sample_gnp(network::network.size(n), network::network.density(n))
+  igraph::sample_gnp(igraph::vcount(n), igraph::edge_density(n))
 }, mc.cores = ncores)
 
 # Saving the networks as edgelists

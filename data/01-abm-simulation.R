@@ -16,10 +16,21 @@ set.seed(1231)
 # Load the simulated networks from the RDS file
 networks <- readRDS("data/Simulated_1000_networks.rds")
 
+# Combining with the sf, sw, and r networks
+networks_sf <- readRDS("data/Simulated_1000_networks_sf.rds")
+networks_sw <- readRDS("data/Simulated_1000_networks_sw.rds")
+networks_r <- readRDS("data/Simulated_1000_networks_r.rds")
+
 # Turning the networks to edgelists
 elists <- lapply(networks, \(n) {
   network::as.edgelist(n)
 })
+
+# Combining with the sf, sw, and r networks
+elists <- c(elists, networks_sf, networks_sw, networks_r)
+
+# Vector with sizes
+sizes <- rep(sapply(networks, network::network.size), 4)
 
 # Set the parameters
 nsims <- 5000
@@ -61,8 +72,8 @@ seeds   <- sample.int(.Machine$integer.max, nsims, replace = TRUE)
 params <- Map(\(a, b, n, i, netid, simid) {
   list(
     netid = netid, infectiousness = a, recovery_rate = b,
-    net = n, inc_days = i, seed = seeds[simid],
-    size = network::network.size(networks[[netid]]),
+    net   = n, inc_days = i, seed = seeds[simid],
+    size  = sizes[[net_id]], #network::network.size(networks[[netid]]),
     simid = simid
     )
   },
