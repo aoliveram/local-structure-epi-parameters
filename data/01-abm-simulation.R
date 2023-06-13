@@ -9,6 +9,7 @@
 
 library(epiworldR)
 library(slurmR)
+library(network)
 
 # Set the seed for reproducibility
 set.seed(1231)
@@ -27,38 +28,56 @@ elists <- lapply(networks, \(n) {
 })
 
 # Combining with the sf, sw, and r networks
-elists <- c(elists, networks_sf, networks_sw, networks_r)
+as_edgelist_int <- function(x) {
+  matrix(as.integer(
+    igraph::as_edgelist(x$net)
+  ), ncol = 2)
+}
+elists <- c(
+  elists,
+  lapply(networks_sf, as_edgelist_int),
+  lapply(networks_sw, as_edgelist_int),
+  lapply(networks_r, as_edgelist_int)
+  )
 
 # Vector with sizes
-sizes <- rep(sapply(networks, network::network.size), 4)
+sizes <- c(
+  lapply(networks, \(x) {network::network.size(x)}),
+  lapply(networks_sf, \(x) {x$n}),
+  lapply(networks_sw, \(x) {x$n}),
+  lapply(networks_r, \(x) {x$n})
+)
+
+# Vector with network types
+net_types <- rep(c("ergm", "sf", "sw", "r"), each = length(networks))
 
 # Set the parameters
-nsims <- 5000
+nsims <- 10000
 Njobs <- 20L
 
 # Set the slurmR options
 SB_OPTS <- list(
     account    = "vegayon-np",
     partition  = "vegayon-shared-np",
-    mem        = "32G"
+    mem        = "64G"
     )
 
 # Sampling infectiousness from a beta distribution
 # This has mean 0.3 and sd 0.05
 alpha <- 20
-beta <- 50
+beta <- 100
 infectiousness <- rbeta(nsims, alpha, beta)
 
 # Sampling incubation days from a Gamma distribution
 # This has mean 7 and variance 7
-alpha <- 7
-beta <- 1
-incubation_days <- rgamma(nsims, alpha, beta)
+alpha <- 7 * 2
+beta <- 1 * 2
+incubation_days <- ceiling(rgamma(nsims, alpha, beta))
 
 # Sampling recovery rate from a beta distribution
 # This has mean 0.3 and variance 0.02
-alpha <- 2
-beta <- 5
+alpha <- 20
+beta <- 50
 recovery_rate <- rbeta(nsims, alpha, beta)
 
 # Set the temporary path of slurmR
@@ -73,7 +92,7 @@ params <- Map(\(a, b, n, i, netid, simid) {
   list(
     netid = netid, infectiousness = a, recovery_rate = b,
     net   = n, inc_days = i, seed = seeds[simid],
-    size  = sizes[[net_id]], #network::network.size(networks[[netid]]),
+    size  = sizes[[netid]], #network::network.size(networks[[netid]]),
     simid = simid
     )
   },
@@ -91,7 +110,12 @@ params <- Map(\(a, b, n, i, netid, simid) {
 
 res <- Slurm_lapply(params, FUN = \(param) {
 
-  tryCatch({
+  message(
+    "Initiating model for netid ", param$netid, " and simid ", param$simid,
+    "...", appendLF = FALSE
+    )
+
+  ans <- tryCatch({
     # Creating the SEIR model
     model <- ModelSEIR(
       name = "SEIR",
@@ -100,6 +124,8 @@ res <- Slurm_lapply(params, FUN = \(param) {
       incubation_days = param$inc_days,
       recovery = param$recovery_rate
     )
+
+    verbose_off(model)
 
     # Adding the network to model
     agents_from_edgelist(
@@ -125,9 +151,23 @@ res <- Slurm_lapply(params, FUN = \(param) {
     )
   }, error = function(e) e)
 
-}, njobs = Njobs, sbatch_opt = SB_OPTS, job_name = "abm-simulation-lapply")
+  if (inherits(ans, "error")) {
+    message(
+      "Error for netid ", param$netid, " and simid ", param$simid,
+      appendLF = FALSE
+      )
+    return(ans)
+  } 
 
+  message("done")
+
+  ans
+
+}, njobs = Njobs, sbatch_opt = SB_OPTS, job_name = "abm-simulation-lapply",
+plan = "wait")
+
+print(res)
 
 # Saving the results under data/
-saveRDS(res, file = "data/01-abm-simulation.rds")
+saveRDS(Slurm_collect(res, any. = TRUE), file = "data/01-abm-simulation.rds")
 

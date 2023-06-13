@@ -140,3 +140,50 @@ texreg::knitreg(
   ), single.row = TRUE)
 ```
 
+## Fitting a RNN using tensorflow
+
+Here, we fit a RNN of the reproductive number as a function of the network 
+statistics
+
+```{r}
+library(tensorflow)
+library(keras)
+
+# Preparing the data
+x <- as.matrix(simstats[, igraph_vars, with = FALSE])
+y <- as.matrix(simstats[, rt, with = FALSE])
+
+# Splitting the data into training and testing
+train_idx <- sample(nrow(x), 0.8 * nrow(x))
+x_train <- x[train_idx, ]
+y_train <- y[train_idx, ]
+x_test <- x[-train_idx, ]
+y_test <- y[-train_idx, ]
+
+# Defining the model
+model <- keras_model_sequential() %>%
+  layer_dense(units = 64, activation = "relu", input_shape = ncol(x_train)) %>%
+  layer_dense(units = 64, activation = "relu") %>%
+  layer_dense(units = 1)
+
+# Compiling the model
+model %>% compile(
+  loss = "mse",
+  optimizer = optimizer_rmsprop(),
+  metrics = c("mae", "mse")
+)
+
+# Fitting the model
+history <- model %>% fit(
+  x_train, y_train,
+  epochs = 100, batch_size = 32,
+  validation_split = 0.2
+)
+
+# Plotting the training history
+plot(history)
+
+# Evaluating the model
+model %>% evaluate(x_test, y_test, verbose = 0)
+```
+
