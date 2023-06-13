@@ -169,5 +169,8 @@ plan = "wait")
 print(res)
 
 # Saving the results under data/
-saveRDS(Slurm_collect(res, any. = TRUE), file = "data/01-abm-simulation.rds")
+saveRDS(
+  Slurm_collect(res, any. = TRUE), file = "data/01-abm-simulation.rds", 
+  compress = FALSE
+  )
 

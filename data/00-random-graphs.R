@@ -59,7 +59,7 @@ message("Done degree-sequence preserve rewiring of the networks")
 
 # Saving the networks as RDS files
 message("Saving the networks")
-saveRDS(networks_sf, "data/Simulated_1000_networks_sf.rds")
-saveRDS(networks_sw, "data/Simulated_1000_networks_sw.rds")
-saveRDS(networks_r, "data/Simulated_1000_networks_r.rds")
+saveRDS(networks_sf, "data/Simulated_1000_networks_sf.rds", compress = FALSE)
+saveRDS(networks_sw, "data/Simulated_1000_networks_sw.rds", compress = FALSE)
+saveRDS(networks_r, "data/Simulated_1000_networks_r.rds", compress = FALSE)
 message("Done saving the networks")

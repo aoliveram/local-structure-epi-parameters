@@ -2,8 +2,9 @@
 #SBATCH --account=vegayon-np
 #SBATCH --partition=vegayon-shared-np
 #SBATCH --ntasks=31
-#SBATCH --mem=100GB
-#SBATCH --job-name=abm-net-02-dataprep
+#SBATCH --mem=128GB
+#SBATCH --job-name=02-dataprep
+#SBATCH --time=24:00:00
 #SBATCH --mail-type=all
 #SBATCH --mail-user=george.vegayon@utah.edu
 
@@ -17,6 +18,7 @@ library(data.table)
 ncores <- 30
 
 # Read the Simulated data rds file from data/
+message("Loading the networks")
 networks <- readRDS("data/Simulated_1000_networks.rds")
 networks <- unclass(networks)
 
@@ -24,14 +26,24 @@ networks <- unclass(networks)
 networks_sf <- readRDS("data/Simulated_1000_networks_sf.rds")
 networks_sw <- readRDS("data/Simulated_1000_networks_sw.rds")
 networks_r <- readRDS("data/Simulated_1000_networks_r.rds")
+message("Done loading the networks")
 
-# Turning them into undirected networks
-networks_sf <- lapply(networks_sf, as.network, directed = FALSE)
-networks_sw <- lapply(networks_sw, as.network, directed = FALSE)
-networks_r <- lapply(networks_r, as.network, directed = FALSE)
+# Converting the networks to network objects
+message("Converting the networks to network objects")
+i2net <- function(net) {
+  igraph::as_edgelist(net$net)
+}
+
+networks_sf <- parallel::mclapply(networks_sf, i2net, mc.cores = ncores)
+networks_sw <- parallel::mclapply(networks_sw, i2net, mc.cores = ncores)
+networks_r <- parallel::mclapply(networks_r, i2net, mc.cores = ncores)
+message("Done converting the networks to network objects")
+
 
 # Adding the node attributes from networks to sf, sw, r
-networks_sf <- Map(\(a,b) {
+add_attr <- function(a,b) {
+
+  a <- network::as.network(a, undirected = TRUE)
   
   # Iterating over the vertex attributes
   for (i in list.vertex.attributes(a)) {
@@ -42,46 +54,30 @@ networks_sf <- Map(\(a,b) {
   # Returning the network
   b
 
-}, a = networks, b = networks_sf)
-
-networks_sw <- Map(\(a,b) {
-  
-  # Iterating over the vertex attributes
-  for (i in list.vertex.attributes(a)) {
-    # Adding the vertex attributes to b
-    b <- set.vertex.attribute(b, i, get.vertex.attribute(a, i))
-  }
-
-  # Returning the network
-  b
-
-}, a = networks, b = networks_sw)
-
-networks_r <- Map(\(a,b) {
-  
-  # Iterating over the vertex attributes
-  for (i in list.vertex.attributes(a)) {
-    # Adding the vertex attributes to b
-    b <- set.vertex.attribute(b, i, get.vertex.attribute(a, i))
-  }
-
-  # Returning the network
-  b
-
-}, a = networks, b = networks_r)
+}
 
 # Combining the networks
 networks <- c(networks, networks_sf, networks_sw, networks_r)
 
 # Removing the sf, sw, r networks (to save memory)
 rm(networks_sf, networks_sw, networks_r)
+gc()
 
 # # Taking a sample of 100 networks
 # set.seed(123)
 # networks <- networks[sample(1:1000, 100)]
 
 # Computing statistics using ERGM
-S_ergm <- parallel::mclapply(networks, \(n) {
+message("Computing statistics using ERGM")
+idxs <- rep(1:(length(networks)/4), 4)
+S_ergm <- parallel::mclapply(seq_along(idxs), \(i) {
+
+  n <- networks[[i]]
+
+  if (!inherits(n, "network")) {
+    n <- add_attr(n, networks[[idxs[i]]])
+  }
+
   summary_formula(
     n ~ edges + nodematch("gender") + nodematch("grade") + triangles + balance +
       twopath + gwdegree(decay = .25, fixed = TRUE) + isolates
@@ -89,10 +85,17 @@ S_ergm <- parallel::mclapply(networks, \(n) {
 }, mc.cores = ncores) |> rbindlist()
 
 head(S_ergm)
+message("Done computing statistics using ERGM")
 
 # Computing statistics based on igraph
+message("Computing statistics based on igraph")
 S_igraph <- parallel::mclapply(networks, \(n) { 
-  n <- asIgraph(n)
+
+  if (inherits(n, "network")) {
+    n <- asIgraph(n)
+  } else {
+    n <- igraph::graph_from_edgelist(n, directed = FALSE)
+  }
   
   data.table(
     modularity      = modularity(cluster_fast_greedy(n)),
@@ -108,14 +111,18 @@ S_igraph <- parallel::mclapply(networks, \(n) {
   )
 }, mc.cores = ncores) |> rbindlist()
 
+head(S_igraph)
+
 setnames(S_ergm, new = paste0("ergm_", names(S_ergm)))
 setnames(S_igraph, new = paste0("igraph_", names(S_igraph)))
+message("Done computing statistics based on igraph")
 
 # Combining the datasets
 S <- cbind(S_igraph, S_ergm)
 S[, netid := seq_len(.N)]
 
 # Reading simulation results ---------------------------------------------------
+message("Processing the simulation results")
 simres <- readRDS("data/01-abm-simulation.rds")
 
 simres <- lapply(simres, \(x) {
@@ -123,42 +130,50 @@ simres <- lapply(simres, \(x) {
   if (inherits(x, "error"))
     return(NULL)
   
-  history <- data.table(x$history)
+  res <- tryCatch({
+    history <- data.table(x$history)
 
-  # Index of the max prevalence
-  peak_idx    <- which.max(x$incidence$Exposed)
-  peak_preval <- x$incidence$Exposed[peak_idx]
-  peak_time   <- as.integer(rownames(x$incidence)[peak_idx])
-  
-  # Rt in the peak
-  rt_idx     <- with(x$repnum, which.min(abs(peak_time - date)))
-  rt         <- x$repnum$avg[rt_idx]
-  dispersion <- 1/x$repnum$sd[rt_idx]^2
+    # Index of the max prevalence
+    peak_idx    <- which.max(x$incidence$Exposed)
+    peak_preval <- x$incidence$Exposed[peak_idx]
+    peak_time   <- as.integer(rownames(x$incidence)[peak_idx])
+    
+    # Rt in the peak
+    rt_idx     <- with(x$repnum, which.min(abs(peak_time - date)))
+    rt         <- x$repnum$avg[rt_idx]
+    dispersion <- 1/x$repnum$sd[rt_idx]^2
 
-  gentime <- with(x$gentime, sum(avg * n, na.rm = TRUE)/
-    sum(n, na.rm = TRUE))
+    gentime <- with(x$gentime, sum(avg * n, na.rm = TRUE)/
+      sum(n, na.rm = TRUE))
 
-  # Final prevalence
-  final_preval <- with(
-    x$history, tail(counts[state == "Removed"], 1)
+    # Final prevalence
+    final_preval <- with(
+      x$history, tail(counts[state == "Removed"], 1)
+      )
+
+    # Return a data.table
+    data.table(
+      simid          = x$simid,
+      netid          = x$netid,
+      peak_time      = peak_time,
+      peak_preval    = peak_preval,
+      rt             = rt,
+      dispersion     = dispersion,
+      gentime        = gentime,
+      final_preval   = final_preval,
+      infectiousness = x$param$infectiousness,
+      inc_days       = x$param$inc_days,
+      recovery_rate  = x$param$recovery_rate
     )
+  }, error=function(e) e)
 
-  # Return a data.table
-  data.table(
-    simid          = x$simid,
-    netid          = x$netid,
-    peak_time      = peak_time,
-    peak_preval    = peak_preval,
-    rt             = rt,
-    dispersion     = dispersion,
-    gentime        = gentime,
-    final_preval   = final_preval,
-    infectiousness = x$param$infectiousness,
-    inc_days       = x$param$inc_days,
-    recovery_rate  = x$param$recovery_rate
-  )
+  if (inherits(res, "error"))
+    return(NULL)
+
+  res
 
 }) |> rbindlist()
+message("Done processing the simulation results")
 
 # Merge the datasets
 S <- merge(S, simres, by = "netid", all.x = TRUE)
@@ -168,5 +183,4 @@ fwrite(
   file = "data/02-dataprep-network-stats.csv.gz"
 )
 
-
-
+message("Done!")
