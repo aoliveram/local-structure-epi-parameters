@@ -37,4 +37,4 @@ ggsave("data/degree-distribution.pdf", width = 5, height = 5)
 # par(op)
 
 # Saving the networks in the data folder
-saveRDS(networks, "data/networks-scalefree.rds")
+saveRDS(networks, "data/networks-scalefree.rds", compress = FALSE)
