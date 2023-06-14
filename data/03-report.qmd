@@ -1,18 +1,35 @@
 ---
-format: gfm
-title: Looking into the data
+format: html
+title: Sunbelt 2023 presentation
+subtitle: "A quick look into the data"
 embed-resources: true
+execute: 
+  warning: false
 ---
 
 
-Reading the data
-
 ```{r}
+#| echo: false
 library(data.table)
 library(ggplot2)
 
 simstats <- fread("data/02-dataprep-network-stats.csv.gz")
 ```
+
+## Context
+
+- We fitted an ERGM to the school network data.
+
+- Using the fitted model, we simulated 1000 networks.
+
+- For each one of the 1000 networks, we simulated a scale-free, small-world, and degree-sequence network.
+
+- We then sampled 10,000 networks from the 4,000 (with replacement) and simulated outbreaks on an SEIR model with the following parameters:
+
+  - Initial prevalence of 5 individuals.
+  - Incubation between `r simstats[, quantile(inc_days, na.rm = TRUE, probs = c(.025, .975))]` 
+  - Transmission rate between `r simstats[, quantile(infectiousness, na.rm = TRUE, probs = c(.025, .975))]`
+  - Recovery rate between `r simstats[, quantile(recovery_rate, na.rm = TRUE, probs = c(.025, .975))]`
 
 ## Visual inspection
 
@@ -26,10 +43,10 @@ ggplot(simstats[final_preval > 0]) +
   )
 
 ggplot(simstats) +
-  geom_point(aes(x = rt, y = ergm_triangle)) 
+  geom_point(aes(x = rt, y = ergm_triangle, colour = nettype)) 
 
 ggplot(simstats) +
-  geom_point(aes(x = rt, y = final_preval)) +
+  geom_jitter(aes(x = rt, y = final_preval, colour = nettype)) +
   scale_y_log10() +
   labs(
     x = "Reproduction number",
@@ -50,7 +67,7 @@ graphs <- list()
 for (igraph_var in igraph_vars) {
   graphs[[igraph_var]] <-
     ggplot(simstats) +
-      geom_point(aes_string(x = "final_preval", y = igraph_var)) +
+      geom_point(aes_string(x = "final_preval", y = igraph_var, colour = "nettype")) +
       scale_y_log10() +
       labs(
         x = "Outbreak size (log10)",
@@ -65,7 +82,7 @@ graphs_ergm <- list()
 for (ergm_var in ergm_vars) {
   graphs_ergm[[ergm_var]] <-
     ggplot(simstats) +
-      geom_point(aes_string(x = "final_preval", y = ergm_var)) +
+      geom_point(aes_string(x = "final_preval", y = ergm_var, colour = "nettype")) +
       scale_y_log10() +
       labs(
         x = "Outbreak size (log10)",
@@ -75,8 +92,10 @@ for (ergm_var in ergm_vars) {
 
 # Use the patchwork R package to combine the graphs
 library(patchwork)
-wrap_plots(graphs, ncol = 4)
-wrap_plots(graphs_ergm, ncol = 4)
+wrap_plots(graphs[1:4], ncol = 2, nrow = 2)
+wrap_plots(graphs[5:8], ncol = 2, nrow = 2)
+wrap_plots(graphs_ergm[1:4], ncol = 2, nrow = 2)
+wrap_plots(graphs_ergm[5:8], ncol = 2, nrow = 2)
 ```
 
 ## Model fitting
@@ -99,7 +118,7 @@ vars <- c(ergm_vars, igraph_vars)
 # Main parameters
 vars <- c(vars, "infectiousness", "inc_days", "recovery_rate")
 
-baseline <- paste("~", paste(vars, collapse = " + ")) |>
+baseline <- paste("~ I(factor(nettype)) + ", paste(vars, collapse = " + ")) |>
   as.formula()
 ```
 
@@ -128,6 +147,8 @@ model_dispersion <- glm(model_dispersion, data = simstats)
 model_final_preval <- glm(model_final_preval, data = simstats, family = poisson())
 ```
 
+::: {style="font-size:70%"}
+
 ```{r}
 #| output: asis
 texreg::knitreg(
@@ -139,4 +160,6 @@ texreg::knitreg(
     final_preval = model_final_preval
   ), single.row = TRUE)
 ```
+
+:::
 
