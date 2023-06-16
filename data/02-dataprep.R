@@ -146,6 +146,10 @@ simres <- lapply(simres, \(x) {
     rt         <- x$repnum$avg[rt_idx]
     dispersion <- 1/x$repnum$sd[rt_idx]^2
 
+    # Mean Rt
+    r_mean     <- with(x$repnum, sum(avg * n, na.rm = TRUE)/
+      sum(n, na.rm = TRUE))
+
     gentime <- with(x$gentime, sum(avg * n, na.rm = TRUE)/
       sum(n, na.rm = TRUE))
 
@@ -161,6 +165,7 @@ simres <- lapply(simres, \(x) {
       peak_time      = peak_time,
       peak_preval    = peak_preval,
       rt             = rt,
+      rt_mean        = r_mean,
       dispersion     = dispersion,
       gentime        = gentime,
       final_preval   = final_preval,
