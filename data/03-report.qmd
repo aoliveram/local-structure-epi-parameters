@@ -163,3 +163,76 @@ texreg::knitreg(
 
 :::
 
+## Pairwise comparisons with the original network
+
+
+We first reload the original data to take the raw values
+
+```{r}
+simstats <- fread("data/02-dataprep-network-stats.csv.gz")
+
+# Scaling variables starting with ergm or igraph using na.rm = TRUE
+igraph_vars <- grep("^igraph", names(simstats), value = TRUE)
+simstats[, (igraph_vars) := lapply(.SD, scale), .SDcols = igraph_vars]
+
+ergm_vars <- grep("^ergm", names(simstats), value = TRUE)
+simstats[, (ergm_vars) := lapply(.SD, scale), .SDcols = ergm_vars]
+```
+
+Preparing the data for the pairwise comparisons
+
+```{r}
+# Computing the average for all variables in simstats by network type and id
+simstats_bynet <- simstats[, lapply(.SD, mean, na.rm = TRUE), by = .(nettype, netid), .SDcols = setdiff(colnames(simstats), c("nettype", "netid"))]
+
+# Generating IDs based on the original
+original_id <- simstats[, as.list(range(netid)), by = nettype]
+setnames(original_id, c("V1", "V2"), c("netid_min", "netid_max"))
+
+# Merging the IDs with the bynet dataset
+simstats_bynet <- merge(simstats_bynet, original_id, by = "nettype")
+
+# Generating new id by subtracting the minimum id from the original
+# and adding 1 to avoid 0
+simstats_bynet[, net := netid - netid_min + 1]
+
+simstats_bynet <- merge(
+  simstats_bynet,
+  simstats_bynet[nettype == "ergm",.SD, .SDcols = c(depvars, "net")],
+  by = "net", suffixes = c("", "_ergm")
+  )
+
+# Preserving complete cases
+simstats_bynet <- simstats_bynet[complete.cases(simstats_bynet)]
+
+```
+
+We now create dependent variables as the difference between  \* and \*_ergm
+
+```{r}
+
+# Creating the dependent variables
+for (depvar in depvars) {
+  simstats_bynet[, paste0(depvar, "_diff") := get(depvar) - get(paste0(depvar, "_ergm"))]
+}
+
+# Removing the rows where nettype equals ergm
+simstats_bynet <- simstats_bynet[nettype != "ergm"]
+
+
+# Generating a list of models
+models <- list()
+depvars2 <- grep("_diff$", names(simstats_bynet), value = TRUE)
+for (depvar in depvars2) {
+  models[[depvar]] <- update(baseline, paste(depvar, "~."))
+}
+
+# Running the models
+models <- lapply(models, glm, data = simstats_bynet)
+```
+
+```{r}
+#| echo: false
+#| output: asis
+texreg::knitreg(models, single.row = TRUE)
+```
