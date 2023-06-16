@@ -69,13 +69,15 @@ gc()
 
 # Computing statistics using ERGM
 message("Computing statistics using ERGM")
-idxs <- rep(1:(length(networks)/4), 4)
+idxs <- 1:length(networks)
+pos  <- rep(1:(length(networks)/4), 4)
+nettypes <- rep(c("ergm", "sf", "sw", "degseq"), each = 1000)
 S_ergm <- parallel::mclapply(seq_along(idxs), \(i) {
 
   n <- networks[[i]]
 
   if (!inherits(n, "network")) {
-    n <- add_attr(n, networks[[idxs[i]]])
+    n <- add_attr(n, networks[[idxs[ pos[i] ]]])
   }
 
   summary_formula(
@@ -120,6 +122,7 @@ message("Done computing statistics based on igraph")
 # Combining the datasets
 S <- cbind(S_igraph, S_ergm)
 S[, netid := seq_len(.N)]
+S[, nettype := nettypes]
 
 # Reading simulation results ---------------------------------------------------
 message("Processing the simulation results")
