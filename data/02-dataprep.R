@@ -46,13 +46,13 @@ add_attr <- function(a,b) {
   a <- network::as.network(a, undirected = TRUE)
   
   # Iterating over the vertex attributes
-  for (i in list.vertex.attributes(a)) {
+  for (i in list.vertex.attributes(b)) {
     # Adding the vertex attributes to b
-    b <- set.vertex.attribute(b, i, get.vertex.attribute(a, i))
+    a <- set.vertex.attribute(a, i, get.vertex.attribute(b, i))
   }
 
   # Returning the network
-  b
+  a
 
 }
 
