@@ -183,6 +183,10 @@ simres <- lapply(simres, \(x) {
 }) |> rbindlist()
 message("Done processing the simulation results")
 
+print(head(S))
+
+print(head(simres))
+
 # Merge the datasets
 S <- merge(S, simres, by = "netid", all.x = TRUE)
 

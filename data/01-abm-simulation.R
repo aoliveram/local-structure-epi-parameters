@@ -52,7 +52,7 @@ sizes <- c(
 net_types <- rep(c("ergm", "sf", "sw", "r"), each = length(networks))
 
 # Set the parameters
-nsims <- 10000
+nsims <- 20000
 Njobs <- 20L
 
 # Set the slurmR options
@@ -120,9 +120,9 @@ res <- Slurm_lapply(params, FUN = \(param) {
     model <- ModelSEIR(
       name = "SEIR",
       prevalence = 0.01,
-      infectiousness = param$infectiousness,
+      transmission_rate = param$infectiousness,
       incubation_days = param$inc_days,
-      recovery = param$recovery_rate
+      recovery_rate = param$recovery_rate
     )
 
     verbose_off(model)
