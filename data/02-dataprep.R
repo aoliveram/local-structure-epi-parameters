@@ -1,7 +1,7 @@
 #!/bin/sh
 #SBATCH --account=vegayon-np
 #SBATCH --partition=vegayon-shared-np
-#SBATCH --ntasks=31
+#SBATCH --ntasks=51
 #SBATCH --mem=128GB
 #SBATCH --job-name=02-dataprep
 #SBATCH --time=24:00:00
@@ -15,7 +15,7 @@ library(intergraph)
 library(ergm)
 library(data.table)
 
-ncores <- 30
+ncores <- 50
 
 # Read the Simulated data rds file from data/
 message("Loading the networks")
@@ -40,22 +40,6 @@ networks_r <- parallel::mclapply(networks_r, i2net, mc.cores = ncores)
 message("Done converting the networks to network objects")
 
 
-# Adding the node attributes from networks to sf, sw, r
-add_attr <- function(a,b) {
-
-  a <- network::as.network(a, undirected = TRUE)
-  
-  # Iterating over the vertex attributes
-  for (i in list.vertex.attributes(b)) {
-    # Adding the vertex attributes to b
-    a <- set.vertex.attribute(a, i, get.vertex.attribute(b, i))
-  }
-
-  # Returning the network
-  a
-
-}
-
 # Combining the networks
 networks <- c(networks, networks_sf, networks_sw, networks_r)
 
@@ -72,12 +56,13 @@ message("Computing statistics using ERGM")
 idxs <- 1:length(networks)
 pos  <- rep(1:(length(networks)/4), 4)
 nettypes <- rep(c("ergm", "sf", "sw", "degseq"), each = 1000)
+vattrs <- as.data.frame(networks[[1]], unit = "vertices")
 S_ergm <- parallel::mclapply(seq_along(idxs), \(i) {
 
   n <- networks[[i]]
 
   if (!inherits(n, "network")) {
-    n <- add_attr(n, networks[[idxs[ pos[i] ]]])
+    n <- network::network(n, vertex.attr = vattrs, undirected = TRUE)
   }
 
   summary_formula(
