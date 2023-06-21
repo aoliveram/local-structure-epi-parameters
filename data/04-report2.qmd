@@ -23,10 +23,99 @@ Preparing the data for the pairwise comparisons
 depvars <- c("peak_time", "peak_preval", "rt", "rt_mean", "dispersion", "gentime")
 
 # Independent variables
-idepvars <- c("inc_days", "recovery_rate", "transmission")
+indepvars <- c("inc_days", "recovery_rate", "transmission_rate")
 
 # Listing variables starting with ergm and igraph separately
 ergmvars <- grep("^ergm", names(simstats), value = TRUE)
 igraphvars <- grep("^igraph", names(simstats), value = TRUE)
+```
+
+# Visualization
+
+Plot showing the distribution of each ergmvars using an histogram
+
+```{r}
+library(ggplot2)
 
 ```
+
+
+
+# Data processing
+
+We now create a function to compute the average for nettype == ergm
+
+```{r}
+ergmdat <- simstats[, lapply(.SD, mean), by = .(nettype), .SDcols = c(ergmvars, igraphvars, depvars, indepvars)]
+
+# Appending the ergm name to the columnnames
+setnames(ergmdat, old = names(ergmdat), new = paste0(names(ergmdat), "_ergm"))
+
+# Except the nettye column
+setnames(ergmdat, old = "nettype_ergm", new = "nettype")
+
+# Merging the data
+simstats <- merge(
+  simstats[nettype != "ergm"],
+  ergmdat, by = "nettype"
+  )
+```
+
+We now calculate the pairwise differences
+
+```{r} 
+# For each var in c(ergmvars, igraphvars, depvars), compute the difference
+# with the variable of the same name but appended with _ergm
+for (var in c(ergmvars, igraphvars, depvars, indepvars)) {
+  simstats[, paste0(var, "_diff") := get(paste0(var, "_ergm")) - get(var)]
+}
+
+```
+
+# Regression Analyses
+
+
+```{r}
+# For now, excluding igraph_avg_closeness_diff.
+# It is usually zero b/c of degseq (has isolates)
+igraphvars <- setdiff(igraphvars, "igraph_avg_closeness")
+
+# Creating formula, one for each devpar+"_diff" using ergmvars+"diff" and igraphvars+"diff"
+# as independent variables
+formulas <- lapply(depvars, function(x) 
+  as.formula(
+    paste0(
+      x, "_diff ~ I(factor(nettype)) + ",
+      paste0(indepvars, "_diff", collapse = "+"), "+",
+      paste0(ergmvars, "_diff", collapse = "+") , "+",
+      paste0(igraphvars, "_diff", collapse = "+")
+      )
+      ))
+
+# Scaling _diff variables in simstats
+simstats[, paste0(ergmvars, "_diff") := lapply(.SD, scale, scale = TRUE), .SDcols = paste0(ergmvars, "_diff")]
+simstats[, paste0(igraphvars, "_diff") := lapply(.SD, scale, scale = TRUE), .SDcols = paste0(igraphvars, "_diff")]
+simstats[, paste0(depvars, "_diff") := lapply(.SD, scale, scale = TRUE), .SDcols = paste0(depvars, "_diff")]
+
+# Fitting the models
+models <- lapply(formulas, function(x) lm(x, data = simstats))
+```
+
+
+
+# Table 1
+
+::: {style="font-size: 70%"}
+
+```{r}
+#| results: "asis"
+# library(stargazer)
+# stargazer(models, type = "text", omit.stat = c("f", "ser"), omit.table.layout = "n")
+texreg::knitreg(
+  setNames(
+    models, 
+    depvars
+  ), single.row = TRUE)
+```
+
+:::

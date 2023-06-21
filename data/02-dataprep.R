@@ -64,10 +64,10 @@ S_igraph <- parallel::mclapply(networks, \(i) {
     density         = igraph::edge_density(n),
     diameter        = diameter(n),
     avg_path_length = igraph::mean_distance(n),
-    avg_degree      = mean(degree(n)),
-    avg_betweenness = mean(betweenness(n)),
-    avg_closeness   = mean(closeness(n)),
-    avg_eigenvector = mean(eigen_centrality(n)$vector),
+    avg_degree      = mean(degree(n), na.rm = TRUE),
+    avg_betweenness = mean(betweenness(n), na.rm = TRUE),
+    avg_closeness   = mean(closeness(n), na.rm = TRUE),
+    avg_eigenvector = mean(eigen_centrality(n)$vector, na.rm = TRUE),
     components      = components(n)$no
   )
 }, mc.cores = ncores) |> rbindlist()
