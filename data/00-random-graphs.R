@@ -5,7 +5,7 @@
 #SBATCH --output=00-rand-graphs-%j.out
 #SBATCH --mail-type=END
 #SBATCH --mail-user=george.vegayon@utah.edu
-#SBATCH --ntasks=31
+#SBATCH --ntasks=21
 #SBATCH --mem=64G
 #SBATCH --time=4:00:00
 
@@ -16,12 +16,30 @@ library(igraph)
 
 # Set the seed for reproducibility
 set.seed(1231)
-ncores <- 30
+ncores <- 20L
 
 # Load the simulated networks from the RDS file
 message("Loading the networks")
 networks <- readRDS("data/Simulated_1000_networks.rds")
 message("Done loading the networks")
+
+# Saving the networks as individual graphs
+for (i in seq_along(networks)) {
+
+  fn <- sprintf("data/graphs/%04i-ergm.rds", i)
+
+  if (file.exists(fn))
+    next
+
+  saveRDS(networks[[i]], fn, compress = FALSE)
+
+}
+
+# All networks have the same attributes. So we get them once
+v_attrs <- as.data.frame(networks[[1]], unit = "vertices") |>
+  as.list()
+
+n_nodes <- network::network.size(networks[[1]])
 
 # Simulating scalefree networks with same density and size
 # as the original networks
@@ -39,9 +57,7 @@ networks_sf <- parallel::mclapply(seq_along(networks), \(i) {
 
   n <- networks[[i]]
 
-
   # Number of vertices in a "network" object
-  n_nodes <- network::network.size(n)
   n_edges <- network::network.edgecount(n)
 
   m <- igraph::sample_pa(
@@ -50,13 +66,11 @@ networks_sf <- parallel::mclapply(seq_along(networks), \(i) {
     directed = FALSE
   )
 
+  for (a in names(v_attrs))
+    m <- set_vertex_attr(m, name = a, value = v_attrs[[a]])
+
   # Turning m into a network object
   m <- intergraph::asNetwork(m)
-
-  # Copying the vertex attributes of n to m
-  for (a in network::list.vertex.attributes(n)) {
-    network::set.vertex.attribute(m, a, network::get.vertex.attribute(n, a))
-  }
 
   # Writing the network to a file 
   saveRDS(m, fn, compress = FALSE)
@@ -71,10 +85,17 @@ message("Done simulating scalefree networks")
 message("Simulating smallworld networks")
 networks_sw <- parallel::mclapply(seq_along(networks), \(i) {
 
+  # Checking out if the file already exists
+  fn <- sprintf("data/graphs/%04i-sw.rds", i)
+
+  if (file.exists(fn))
+    return(NULL)
+  
+  set.seed(random_seeds[i])
+
   n <- networks[[i]]
 
   # Number of vertices in a "network" object
-  n_nodes <- network::network.size(n)
   n_edges <- network::network.edgecount(n)
 
   m <- igraph::sample_smallworld(
@@ -83,15 +104,14 @@ networks_sw <- parallel::mclapply(seq_along(networks), \(i) {
     p = 0.2
     )
 
+  for (a in names(v_attrs))
+    m <- set_vertex_attr(m, name = a, value = v_attrs[[a]])
+
   # Turning m into a network object
   m <- intergraph::asNetwork(m)
 
-  # Copying the vertex attributes of n to m
-  for (a in network::list.vertex.attributes(n)) {
-    network::set.vertex.attribute(m, a, network::get.vertex.attribute(n, a))
-  }
-  
-  saveRDS(m, sprintf("data/graphs/%04i-sw.rds", i), compress = FALSE)
+  # Writing the network to a file 
+  saveRDS(m, fn, compress = FALSE)
 
   NULL
     
@@ -102,10 +122,18 @@ message("Done simulating smallworld networks")
 message("Degree-sequence preserve rewiring of the networks")
 networks_r <- parallel::mclapply(seq_along(networks), \(i) {
 
+  # Checking out if the file already exists
+  fn <- sprintf("data/graphs/%04i-degseq.rds", i)
+
+  if (file.exists(fn))
+    return(NULL)
+  
+  set.seed(random_seeds[i])
+
   n <- networks[[i]]
 
+
   # Number of vertices in a "network" object
-  n_nodes <- network::network.size(n)
   n_edges <- network::network.edgecount(n)
   
   m <- igraph::rewire(
@@ -113,15 +141,15 @@ networks_r <- parallel::mclapply(seq_along(networks), \(i) {
     keeping_degseq(niter = n_edges*20)
     )
 
+  for (a in names(v_attrs))
+    m <- set_vertex_attr(m, name = a, value = v_attrs[[a]])
+
   # Turning m into a network object
-  m <- intergraph::asNetwork(m)
+  m <- igraph::delete_edge_attr(m, "na") |>
+    intergraph::asNetwork()
 
-  # Copying the vertex attributes of n to m
-  for (a in network::list.vertex.attributes(n)) {
-    network::set.vertex.attribute(m, a, network::get.vertex.attribute(n, a))
-  }
-
-  saveRDS(m, sprintf("data/graphs/%04i-degseq.rds", i), compress = FALSE)
+  # Writing the network to a file 
+  saveRDS(m, fn, compress = FALSE)
 
   NULL
 
