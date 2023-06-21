@@ -121,18 +121,18 @@ simres <- parallel::mclapply(simfiles, \(fn) {
 
     # Return a data.table
     data.table(
-      simfile        = fn,
-      simid          = x$simid,
-      peak_time      = peak_time,
-      peak_preval    = peak_preval,
-      rt             = rt,
-      rt_mean        = r_mean,
-      dispersion     = dispersion,
-      gentime        = gentime,
-      final_preval   = final_preval,
-      infectiousness = x$param$infectiousness,
-      inc_days       = x$param$inc_days,
-      recovery_rate  = x$param$recovery_rate
+      simfile           = fn,
+      simid             = x$simid,
+      peak_time         = peak_time,
+      peak_preval       = peak_preval,
+      rt                = rt,
+      rt_mean           = r_mean,
+      dispersion        = dispersion,
+      gentime           = gentime,
+      final_preval      = final_preval,
+      transmission_rate = x$param$transmission_rate,
+      inc_days          = x$param$inc_days,
+      recovery_rate     = x$param$recovery_rate
     )
   }, error=function(e) e)
 
