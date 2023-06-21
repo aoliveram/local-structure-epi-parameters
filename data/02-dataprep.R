@@ -1,7 +1,7 @@
 #!/bin/sh
 #SBATCH --account=vegayon-np
 #SBATCH --partition=vegayon-shared-np
-#SBATCH --ntasks=51
+#SBATCH --ntasks=31
 #SBATCH --mem=128GB
 #SBATCH --job-name=02-dataprep
 #SBATCH --time=24:00:00
@@ -15,76 +15,50 @@ library(intergraph)
 library(ergm)
 library(data.table)
 
-ncores <- 50
+ncores <- 30
 
 # Read the Simulated data rds file from data/
-message("Loading the networks")
-networks <- readRDS("data/Simulated_1000_networks.rds")
-networks <- unclass(networks)
-
-# Reading in the edgelists sf, sw, r
-networks_sf <- readRDS("data/Simulated_1000_networks_sf.rds")
-networks_sw <- readRDS("data/Simulated_1000_networks_sw.rds")
-networks_r <- readRDS("data/Simulated_1000_networks_r.rds")
-message("Done loading the networks")
-
-# Converting the networks to network objects
-message("Converting the networks to network objects")
-i2net <- function(net) {
-  igraph::as_edgelist(net$net)
-}
-
-networks_sf <- parallel::mclapply(networks_sf, i2net, mc.cores = ncores)
-networks_sw <- parallel::mclapply(networks_sw, i2net, mc.cores = ncores)
-networks_r <- parallel::mclapply(networks_r, i2net, mc.cores = ncores)
-message("Done converting the networks to network objects")
-
-
-# Combining the networks
-networks <- c(networks, networks_sf, networks_sw, networks_r)
-
-# Removing the sf, sw, r networks (to save memory)
-rm(networks_sf, networks_sw, networks_r)
-gc()
-
-# # Taking a sample of 100 networks
-# set.seed(123)
-# networks <- networks[sample(1:1000, 100)]
+message("Loading the networks files")
+networks <- list.files(
+  "data/graphs", pattern = "[0-9]+-(ergm|sf|sw|degseq)\\.rds$",full.names = TRUE) 
 
 # Computing statistics using ERGM
 message("Computing statistics using ERGM")
-idxs <- 1:length(networks)
-pos  <- rep(1:(length(networks)/4), 4)
-nettypes <- rep(c("ergm", "sf", "sw", "degseq"), each = 1000)
-vattrs <- as.data.frame(networks[[1]], unit = "vertices")
-S_ergm <- parallel::mclapply(seq_along(idxs), \(i) {
+S_ergm <- parallel::mclapply(seq_along(networks), \(i) {
 
   n <- networks[[i]]
 
-  if (!inherits(n, "network")) {
-    n <- network::network(n, vertex.attr = vattrs, undirected = TRUE)
-  }
+  # Reading the network
+  n <- readRDS(n)
 
-  summary_formula(
+  res <- summary_formula(
     n ~ edges + nodematch("gender") + nodematch("grade") + triangles + balance +
       twopath + gwdegree(decay = .25, fixed = TRUE) + isolates
   ) |> as.list() |> as.data.table()
+
+  res[, netfile := networks[[i]]]
+
+  res
 }, mc.cores = ncores) |> rbindlist()
+
+# Pre-appending `ergm_` to all column names, except netfile
+setnames(S_ergm, new = paste0("ergm_", names(S_ergm)))
+setnames(S_ergm, old = "ergm_netfile", new = "netfile")
+
 
 head(S_ergm)
 message("Done computing statistics using ERGM")
 
 # Computing statistics based on igraph
 message("Computing statistics based on igraph")
-S_igraph <- parallel::mclapply(networks, \(n) { 
+S_igraph <- parallel::mclapply(networks, \(i) { 
 
-  if (inherits(n, "network")) {
-    n <- asIgraph(n)
-  } else {
-    n <- igraph::graph_from_edgelist(n, directed = FALSE)
-  }
+  # Reading the network and converting it into igraph
+  n <- readRDS(i)
+  n <- intergraph::asIgraph(n)
   
   data.table(
+    netfile         = i,
     modularity      = modularity(cluster_fast_greedy(n)),
     transitivity    = transitivity(n),
     density         = igraph::edge_density(n),
@@ -100,23 +74,25 @@ S_igraph <- parallel::mclapply(networks, \(n) {
 
 head(S_igraph)
 
-setnames(S_ergm, new = paste0("ergm_", names(S_ergm)))
 setnames(S_igraph, new = paste0("igraph_", names(S_igraph)))
+setnames(S_igraph, old = "igraph_netfile", new = "netfile")
+
 message("Done computing statistics based on igraph")
 
 # Combining the datasets
-S <- cbind(S_igraph, S_ergm)
-S[, netid := seq_len(.N)]
-S[, nettype := nettypes]
+S <- merge(S_igraph, S_ergm, by = "netfile", all = TRUE)
+
+S[, nettype := gsub(".+-([a-z]+)\\.rds", "\\1", netfile)]
+S[, netid   := gsub(".+/([0-9]+-[a-z]+)\\.rds", "\\1", netfile)]
+
 
 # Reading simulation results ---------------------------------------------------
 message("Processing the simulation results")
-simres <- readRDS("data/01-abm-simulation.rds")
+simfiles <- list.files("data/graphs", pattern = "-sim-[0-9]+\\.rds$", full.names = TRUE)
 
-simres <- lapply(simres, \(x) {
+simres <- parallel::mclapply(simfiles, \(fn) {
 
-  if (inherits(x, "error"))
-    return(NULL)
+  x <- readRDS(fn)
   
   res <- tryCatch({
     history <- data.table(x$history)
@@ -145,8 +121,8 @@ simres <- lapply(simres, \(x) {
 
     # Return a data.table
     data.table(
+      simfile        = fn,
       simid          = x$simid,
-      netid          = x$netid,
       peak_time      = peak_time,
       peak_preval    = peak_preval,
       rt             = rt,
@@ -165,15 +141,17 @@ simres <- lapply(simres, \(x) {
 
   res
 
-}) |> rbindlist()
+}, mc.cores = ncores) |> rbindlist()
 message("Done processing the simulation results")
+
+simres[, netid := gsub(".+/([0-9]+-[a-z]+)-sim.+", "\\1", simfile)]
 
 print(head(S))
 
 print(head(simres))
 
 # Merge the datasets
-S <- merge(S, simres, by = "netid", all.x = TRUE)
+S <- merge(simres, S, by = "netid", all.x = TRUE, all.y = FALSE)
 
 fwrite(
   S,
