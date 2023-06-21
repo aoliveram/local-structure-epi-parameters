@@ -14,45 +14,12 @@ library(network)
 # Set the seed for reproducibility
 set.seed(1231)
 
-# Load the simulated networks from the RDS file
-networks <- readRDS("data/Simulated_1000_networks.rds")
-
-# Combining with the sf, sw, and r networks
-networks_sf <- readRDS("data/Simulated_1000_networks_sf.rds")
-networks_sw <- readRDS("data/Simulated_1000_networks_sw.rds")
-networks_r <- readRDS("data/Simulated_1000_networks_r.rds")
-
-# Turning the networks to edgelists
-elists <- lapply(networks, \(n) {
-  network::as.edgelist(n)
-})
-
-# Combining with the sf, sw, and r networks
-as_edgelist_int <- function(x) {
-  matrix(as.integer(
-    igraph::as_edgelist(x$net)
-  ), ncol = 2)
-}
-elists <- c(
-  elists,
-  lapply(networks_sf, as_edgelist_int),
-  lapply(networks_sw, as_edgelist_int),
-  lapply(networks_r, as_edgelist_int)
-  )
-
-# Vector with sizes
-sizes <- c(
-  lapply(networks, \(x) {network::network.size(x)}),
-  lapply(networks_sf, \(x) {x$n}),
-  lapply(networks_sw, \(x) {x$n}),
-  lapply(networks_r, \(x) {x$n})
-)
-
-# Vector with network types
-net_types <- rep(c("ergm", "sf", "sw", "r"), each = length(networks))
+# Listing all the files under data/graphs and keeping full path
+# to the files
+graph_files <- list.files("data/graphs", full.names = TRUE)
 
 # Set the parameters
-nsims <- 10000
+nsims <- 20000
 Njobs <- 20L
 
 # Set the slurmR options
@@ -66,7 +33,7 @@ SB_OPTS <- list(
 # This has mean 0.3 and sd 0.05
 alpha <- 20
 beta <- 100
-infectiousness <- rbeta(nsims, alpha, beta)
+transmission_rates <- rbeta(nsims, alpha, beta)
 
 # Sampling incubation days from a Gamma distribution
 # This has mean 7 and variance 7
@@ -78,30 +45,31 @@ incubation_days <- ceiling(rgamma(nsims, alpha, beta))
 # This has mean 0.3 and variance 0.02
 alpha <- 20
 beta <- 50
-recovery_rate <- rbeta(nsims, alpha, beta)
+recovery_rates <- rbeta(nsims, alpha, beta)
 
 # Set the temporary path of slurmR
 # opts_slurmR$set_tmp_path("/tmp")
 
 # Group infectiousness and recovery_rate into a list of length
 # nsims featuring one element per simulation
-net_ids <- sample.int(length(elists), nsims, replace = TRUE)
-seeds   <- sample.int(.Machine$integer.max, nsims, replace = TRUE)
+netfiles <- sample(graph_files, nsims, replace = TRUE)
+seeds    <- sample.int(.Machine$integer.max, nsims, replace = TRUE)
 
-params <- Map(\(a, b, n, i, netid, simid) {
+params <- Map(\(t_rate, r_rate, i, netfile, simid) {
   list(
-    netid = netid, infectiousness = a, recovery_rate = b,
-    net   = n, inc_days = i, seed = seeds[simid],
-    size  = sizes[[netid]], #network::network.size(networks[[netid]]),
-    simid = simid
+    netfile           = netfile,
+    transmission_rate = t_rate,
+    recovery_rate     = r_rate,
+    inc_days          = i,
+    seed              = seeds[simid],
+    simid             = simid
     )
   },
-  a = infectiousness,
-  b = recovery_rate,
-  i = incubation_days,
-  n = elists[net_ids],
-  netid = net_ids,
-  simid = 1:nsims
+  t_rate  = transmission_rates,
+  r_rate  = recovery_rates,
+  i       = incubation_days,
+  netfile = netfiles,
+  simid   = 1:nsims
   )
 
 # Sampling
@@ -111,28 +79,64 @@ params <- Map(\(a, b, n, i, netid, simid) {
 res <- Slurm_lapply(params, FUN = \(param) {
 
   message(
-    "Initiating model for netid ", param$netid, " and simid ", param$simid,
+    "Initiating model for simid ", param$simid, " and netfile ", param$netfile,
     "...", appendLF = FALSE
     )
+
+  # Generating filename using param$netfile
+  fn <- gsub(
+    pattern = "\\.rds$",
+    replacement = sprintf("-sim-%04i.rds", param$simid),
+    x = param$netfile
+    )
+
+  if (file.exists(fn)) {
+    message("File ", fn, " already exists, skipping...")
+    return(NULL)
+  }
 
   ans <- tryCatch({
     # Creating the SEIR model
     model <- ModelSEIR(
-      name = "SEIR",
-      prevalence = 0.01,
-      infectiousness = param$infectiousness,
-      incubation_days = param$inc_days,
-      recovery = param$recovery_rate
+      name              = "SEIR",
+      prevalence        = 0.01,
+      transmission_rate = param$transmission_rate,
+      incubation_days   = param$inc_days,
+      recovery_rate     = param$recovery_rate
     )
 
     verbose_off(model)
 
     # Adding the network to model
+    net <- readRDS(param$netfile)
+
+    nnodes <- network::network.size(net)
+    nedges <- network::network.edgecount(net)
+    net <- network::as.edgelist(net)
+
+    if (any(is.na(net))) {
+      message("NA in net for simid ", param$simid, " and netfile ", param$netfile)
+      print(net)
+      return(NULL)
+    }
+
+    if (nrow(net) != nedges) {
+      message("Missmatch of edgelist with num of edges for simid ", param$simid, " and netfile ", param$netfile)
+      print(net)
+      return(NULL)
+    }
+
+    if (inherits(net, "character")) {
+      message("Error for simid ", param$simid, " and netfile ", param$netfile, ". Seems to be a character.")
+      print(net)
+      return(NULL)
+    }
+
     agents_from_edgelist(
       model,
-      size   = param$size,
-      source = param$net[, 1] - 1L,
-      target = param$net[, 2] - 1L,
+      size   = nnodes,
+      source = net[, 1] - 1L,
+      target = net[, 2] - 1L,
       directed = FALSE
       )
 
@@ -140,15 +144,18 @@ res <- Slurm_lapply(params, FUN = \(param) {
     run(model, ndays = 100, seed = param$seed)
 
     # Get the results
-    list(
+    saveRDS(list(
       simid     = param$simid,
-      netid     = param$netid,
+      netfile   = param$netfile,
       history   = get_hist_total(model),
       repnum    = plot_reproductive_number(model, plot = FALSE),
       incidence = plot_incidence(model, plot = FALSE),
       gentime   = plot_generation_time(model, plot = FALSE),
       params    = param
-    )
+    ), fn, compress = FALSE)
+
+    fn
+
   }, error = function(e) e)
 
   if (inherits(ans, "error")) {
@@ -170,7 +177,7 @@ print(res)
 
 # Saving the results under data/
 saveRDS(
-  Slurm_collect(res, any. = TRUE), file = "data/01-abm-simulation.rds", 
+  Slurm_collect(res, any. = TRUE), file = "data/01-abm-simulation-fn.rds", 
   compress = FALSE
   )
 
