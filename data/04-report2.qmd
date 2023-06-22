@@ -12,11 +12,57 @@ execute:
 We first reload the original data to take the raw values
 
 ```{r}
+#| echo: false
 library(data.table)
+library(ggplot2)
 simstats <- fread("data/02-dataprep-network-stats.csv.gz")
+summRt <- function(val) {
+
+  # Average of the ERGM network
+  avgs <- simstats[,
+    list(avg = mean(.SD[[1]], na.rm = TRUE)), by = "nettype",
+    .SDcols = val]
+
+  # Average of the ERGM network
+  avg_ergm <- mean(
+    simstats[nettype == "ergm", .SD[[1]], .SDcols = val],
+    na.rm = TRUE
+    )
+
+  ans <- ggplot(simstats, aes_string(x = val)) +
+    geom_histogram() +
+    facet_wrap(~nettype, ncol = 2) +
+    theme_bw() +
+    geom_vline(
+      xintercept = avg_ergm,
+      color = "red", linetype = "dashed"
+      ) +
+    geom_vline(
+      aes(xintercept = avg), avgs,
+      colour = "blue", linetype = 2
+      ) +
+    # Label to the vline "ERGM mean"
+    geom_text(
+      aes(x = 0.5, y = 0.5, label = "ERGM mean"),
+      data = data.frame(x = 0.5, y = 0.5),
+      color = "red", angle = 90, hjust = 0, vjust = 0
+      ) +
+    theme(legend.position = "none")
+
+  print(ans)
+
+  simstats[, as.list(
+  quantile(.SD[[1]], probs = c(.025, .5,.975), na.rm = TRUE
+  )), by = "nettype", .SDcols = val] |>
+  knitr::kable(
+    caption = sprintf("%s at day 0 by network type", val),
+    digits = 2
+    )
+
+}
 ```
 
-Preparing the data for the pairwise comparisons
+Here are the variables we are interested in
 
 ```{r}
 # Dependent variables
@@ -30,12 +76,118 @@ ergmvars <- grep("^ergm", names(simstats), value = TRUE)
 igraphvars <- grep("^igraph", names(simstats), value = TRUE)
 ```
 
-# Visualization
+# Differences between network types
+
+::: {.panel-tabset}
+
+## Peak time
+
+There's no much diversity in peak time for the different network types
+
+```{r}
+#| echo: false
+#| label: peak-time
+simstats[, table(nettype, peak_time)] |> knitr::kable()
+
+ggplot(simstats, aes(x = peak_time)) +
+  geom_histogram(binwidth = 1) +
+  # facet_wrap(~nettype, ncol = 2) +
+  theme_bw() 
+  # theme(legend.position = "none")
+```
+
+## Peak prevalence
+
+```{r}
+summRt("peak_preval")
+```
+
+## Generation time
+
+```{r}
+#| label: gentime
+#| echo: false
+summRt("gentime")
+```
+
+Scale-free networks show a higher generation time than ERGM networks.
+
+## Dispersion
+
+```{r}
+#| label: dispersion
+#| echo: false
+summRt("dispersion")
+```
+
+We do observe a lower dispersion in scale-free networks compared to the ERGM networks.
+
+:::
+
+# Reproductive number
+
+::: {.panel-tabset}
+
+## Day 0
+
+```{r}
+#| label: r0-day0
+#| echo: false
+summRt("rt_0")
+```
+
+## Day 1
+
+```{r}
+#| label: r0-day1
+#| echo: false
+summRt("rt_1")
+```
+
+## Day 2
+
+```{r}
+#| label: r0-day2
+#| echo: false
+summRt("rt_2")
+```
+
+## Day 3
+
+```{r}
+#| label: r0-day3
+#| echo: false
+summRt("rt_3")
+```
+
+## Day 4
+
+```{r}
+#| label: r0-day4
+#| echo: false
+summRt("rt_4")
+```
+
+
+
+:::
+
+# Pairwise association between graph structures and outcomes
+
+::: {.panel-tabset}
+
+## Peak time
+
+```{r}
+#| label: pairwise-ergm
+
+```
+
+:::
 
 Plot showing the distribution of each ergmvars using an histogram
 
 ```{r}
-library(ggplot2)
 
 ```
 
