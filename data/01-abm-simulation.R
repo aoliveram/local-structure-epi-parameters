@@ -31,8 +31,8 @@ SB_OPTS <- list(
 
 # Sampling infectiousness from a beta distribution
 # This has mean 0.3 and sd 0.05
-alpha <- 20
-beta <- 100
+alpha <- 5
+beta <- 200
 transmission_rates <- rbeta(nsims, alpha, beta)
 
 # Sampling incubation days from a Gamma distribution
@@ -99,7 +99,7 @@ res <- Slurm_lapply(params, FUN = \(param) {
     # Creating the SEIR model
     model <- ModelSEIR(
       name              = "SEIR",
-      prevalence        = 0.01,
+      prevalence        = 0.002, # One seed
       transmission_rate = param$transmission_rate,
       incubation_days   = param$inc_days,
       recovery_rate     = param$recovery_rate
@@ -141,7 +141,7 @@ res <- Slurm_lapply(params, FUN = \(param) {
       )
 
     # Running the simulation
-    run(model, ndays = 100, seed = param$seed)
+    run(model, ndays = 50, seed = param$seed)
 
     # Get the results
     saveRDS(list(

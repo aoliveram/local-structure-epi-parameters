@@ -85,6 +85,27 @@ In this study, we will look into key epidemiological measurements as a function 
 
     c. We computed the epidemiological measurements.
 
+## We computed the probabilities as follows:
+
+- Recovery rate: $1/7$ (one week's worth)
+
+- Mean degree: 14 (contact rate)
+
+To target a repnum of 2, we build the following formula
+
+$RepNum = C_{rate} \times p_t\sum_{k = 0}(1 - p_r)(1 - p_t) = \frac{C_rate}{1 - (1 - p_r)(1 - p_t)}p_t$
+
+RepNum = 2 and $p_r = 1/7$
+
+Therefore,
+
+$p_t = \frac{p_r}{(C/R + p_r - 1)}$, with C = 14, R = 2, and $p_r = 1/7$
+
+$p_t \approx 0.023$
+
+- Transmission probability: 
+
+- Transmission probability
 
 ## Preliminary results
 
