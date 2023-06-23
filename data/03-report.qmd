@@ -28,7 +28,7 @@ simstats <- fread("data/02-dataprep-network-stats.csv.gz")
 
   - Initial prevalence of 5 individuals.
   - Incubation between `r simstats[, quantile(inc_days, na.rm = TRUE, probs = c(.025, .975))]` 
-  - Transmission rate between `r simstats[, quantile(infectiousness, na.rm = TRUE, probs = c(.025, .975))]`
+  - Transmission rate between `r simstats[, quantile(transmission_rate, na.rm = TRUE, probs = c(.025, .975))]`
   - Recovery rate between `r simstats[, quantile(recovery_rate, na.rm = TRUE, probs = c(.025, .975))]`
 
 ## Visual inspection
@@ -116,7 +116,7 @@ library(texreg)
 vars <- c(ergm_vars, igraph_vars)
 
 # Main parameters
-vars <- c(vars, "infectiousness", "inc_days", "recovery_rate")
+vars <- c(vars, "transmission_rate", "inc_days", "recovery_rate")
 
 baseline <- paste("~ I(factor(nettype)) + ", paste(vars, collapse = " + ")) |>
   as.formula()

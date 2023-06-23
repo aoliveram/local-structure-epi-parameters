@@ -16,8 +16,8 @@ library(data.table);require(dplyr)
 library(network);library(ergm);library(intergraph)
 
 
-students     <- fread("pone.0153690.s001.csv") #678
-interactions <- fread("pone.0153690.s003.csv") #10781
+students     <- fread("data-raw/pone.0153690.s001.csv") #678
+interactions <- fread("data-raw/pone.0153690.s003.csv") #10781
 ```
 
 ## Data cleaning 
@@ -87,9 +87,9 @@ mean(degree(net))
 
 edge_density(net)  # density
 
-groups=cluster_edge_betweenness(net) #clustering
-length(groups) # now only 16!
-modularity(groups) # 0.407
+# groups=cluster_edge_betweenness(net) #clustering
+# length(groups) # now only 16!
+# modularity(groups) # 0.407
 ```
 Plot the network
 ```{r}
