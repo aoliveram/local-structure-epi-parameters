@@ -22,6 +22,14 @@ simstats <- simstats[peak_preval > 1]
 
 summRt <- function(val) {
 
+  simstats[, as.list(
+  quantile(.SD[[1]], probs = c(.025, .5,.975), na.rm = TRUE
+  )), by = "nettype", .SDcols = val] |>
+  knitr::kable(
+    caption = sprintf("%s at day 0 by network type", val),
+    digits = 2
+    ) |>print()
+
   # Average of the ERGM network
   avgs <- simstats[,
     list(avg = mean(.SD[[1]], na.rm = TRUE)), by = "nettype",
@@ -53,15 +61,7 @@ summRt <- function(val) {
       ) +
     theme(legend.position = "none")
 
-  print(ans)
-
-  simstats[, as.list(
-  quantile(.SD[[1]], probs = c(.025, .5,.975), na.rm = TRUE
-  )), by = "nettype", .SDcols = val] |>
-  knitr::kable(
-    caption = sprintf("%s at day 0 by network type", val),
-    digits = 2
-    )
+  ans
 
 }
 ```
@@ -91,13 +91,7 @@ There's no much diversity in peak time for the different network types
 ```{r}
 #| echo: false
 #| label: peak-time
-simstats[, table(nettype, peak_time)] |> knitr::kable()
-
-ggplot(simstats, aes(x = peak_time)) +
-  geom_histogram(binwidth = 1) +
-  # facet_wrap(~nettype, ncol = 2) +
-  theme_bw() 
-  # theme(legend.position = "none")
+summRt("peak_time")
 ```
 
 ## Peak prevalence
@@ -131,6 +125,14 @@ We do observe a lower dispersion in scale-free networks compared to the ERGM net
 # Reproductive number
 
 ::: {.panel-tabset}
+
+## Average
+
+```{r}
+#| label: r0-avg
+#| echo: false
+summRt("rt")
+```
 
 ## Day 0
 
