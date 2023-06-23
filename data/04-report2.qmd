@@ -16,6 +16,10 @@ We first reload the original data to take the raw values
 library(data.table)
 library(ggplot2)
 simstats <- fread("data/02-dataprep-network-stats.csv.gz")
+
+# Removing cases with 0 transmission
+simstats <- simstats[peak_preval > 1]
+
 summRt <- function(val) {
 
   # Average of the ERGM network
@@ -228,6 +232,7 @@ for (var in c(ergmvars, igraphvars, depvars, indepvars)) {
 
 
 ```{r}
+#| eval: true
 # For now, excluding igraph_avg_closeness_diff.
 # It is usually zero b/c of degseq (has isolates)
 igraphvars <- setdiff(igraphvars, "igraph_avg_closeness")
@@ -237,10 +242,10 @@ igraphvars <- setdiff(igraphvars, "igraph_avg_closeness")
 formulas <- lapply(depvars, function(x) 
   as.formula(
     paste0(
-      x, "_diff ~ I(factor(nettype)) + ",
+      x, "_diff ~ I(factor(nettype)) + ", 
       paste0(indepvars, "_diff", collapse = "+"), "+",
-      paste0(ergmvars, "_diff", collapse = "+") , "+",
-      paste0(igraphvars, "_diff", collapse = "+")
+      paste0(ergmvars, "_diff", collapse = "+")  #, "+",
+      # paste0(igraphvars, "_diff", collapse = "+")
       )
       ))
 
@@ -250,7 +255,7 @@ simstats[, paste0(igraphvars, "_diff") := lapply(.SD, scale, scale = TRUE), .SDc
 simstats[, paste0(depvars, "_diff") := lapply(.SD, scale, scale = TRUE), .SDcols = paste0(depvars, "_diff")]
 
 # Fitting the models
-models <- lapply(formulas, function(x) lm(x, data = simstats))
+models <- lapply(formulas[1:4], function(x) lm(x, data = simstats))
 ```
 
 
@@ -261,12 +266,13 @@ models <- lapply(formulas, function(x) lm(x, data = simstats))
 
 ```{r}
 #| results: "asis"
+#| eval: true
 # library(stargazer)
 # stargazer(models, type = "text", omit.stat = c("f", "ser"), omit.table.layout = "n")
 texreg::knitreg(
   setNames(
     models, 
-    depvars
+    depvars[1:4]
   ), single.row = TRUE)
 ```
 

@@ -144,7 +144,24 @@ fit3=ergm(net2 ~ edges  + nodematch('gender')+ nodefactor('grade')+nodematch('gr
 
 fit4= ergm(net2 ~ edges  + nodematch('gender')+ nodefactor('grade')+nodematch('grade') +nodematch('lunch')+altkstar(0.5, fixed=TRUE))
 
-fit3r=ergm(net2 ~ edges  + nodematch('gender')+ nodefactor('grade')+nodematch('grade') +nodematch('lunch')  +offset(degree(0)) , offset.coef = -Inf)
+# Starting point
+startpoint <- c(
+  edges = 0, nodematch.gender = -10.478966226607,
+  nodefactor.grade.8 = 2.0692262820586, 
+  nodematch.grade = 8.81811181083116,
+  balance = -0.00882693212436488, 
+  nodematch.lunch = -9.19321031538299
+  )
+
+fit3r <- ergm(
+  net2 ~ edges  + nodematch('gender') + nodefactor('grade') +
+    nodematch('grade') + balance + nodematch('lunch') + altkstar(0.5, fixed=TRUE), 
+    constraints = ~ edges #,
+  # control = control.ergm(
+  #   main.method = "Stochastic-Approximation",
+  #   init = startpoint
+  #   )
+  )
 
 saveRDS(fit3, file = "~/school/the_model.rds")
 #mcmc.diagnostics(fit3r)
