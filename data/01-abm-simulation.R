@@ -20,7 +20,7 @@ graph_files <- list.files("data/graphs", full.names = TRUE)
 
 # Set the parameters
 nsims <- 20000
-Njobs <- 20L
+Njobs <- 30L
 
 # Set the slurmR options
 SB_OPTS <- list(
@@ -141,7 +141,7 @@ res <- Slurm_lapply(params, FUN = \(param) {
       )
 
     # Running the simulation
-    run(model, ndays = 50, seed = param$seed)
+    run(model, ndays = 100, seed = param$seed)
 
     # Get the results
     saveRDS(list(
