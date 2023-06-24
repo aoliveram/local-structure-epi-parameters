@@ -183,8 +183,6 @@ summRt("rt_3")
 summRt("rt_4")
 ```
 
-
-
 :::
 
 # Pairwise association between graph structures and outcomes
