@@ -86,39 +86,41 @@ In this study, we will look into key epidemiological measurements as a function 
 
     c. We computed the epidemiological measurements.
 
-## We computed the probabilities as follows:
+## Simulation paramters
 
-- Recovery rate: $1/7$ (one week's worth)
+- Recovery rate: $1/7$ (one week's worth).
 
-- Mean degree: 14 (contact rate)
+- Mean degree: 14 (contact rate).
 
-To target a repnum of 2, we build the following formula
+- Reproductive number of ~2.
 
-$RepNum = C_{rate} \times p_t\sum_{k = 0}(1 - p_r)(1 - p_t) = \frac{C_rate}{1 - (1 - p_r)(1 - p_t)}p_t$
+- Transmission rate of ~0.023.[^tratecomputation]
+
+- 100 days
+
+<!-- $RepNum = C_{rate} \times p_t\sum_{k = 0}(1 - p_r)(1 - p_t) = \frac{C_rate}{1 - (1 - p_r)(1 - p_t)}p_t$
 
 RepNum = 2 and $p_r = 1/7$
 
-Therefore,
+Therefore, -->
 
-$p_t = \frac{p_r}{(C/R + p_r - 1)}$, with C = 14, R = 2, and $p_r = 1/7$
-
-$p_t \approx 0.023$
-
-- Transmission probability: 
-
-- Transmission probability
+[^tratecomputation]: To calculate the transmission rate, we use the following formula: $p_t = \frac{p_r}{(C/R + p_r - 1)}$, with C = 14, R = 2, and $p_r = 1/7$
 
 ## Preliminary results
 
-::: {.column width="35%"}
+::: {.columns}
+
+::: {.column width="30%" style="font-size: 80%;"}
+
 $$
 p_t = \frac{p_r}{(C/R + p_r - 1)}
 $$
 
-, with C = 14, R = 2, and $p_r = 1/7$
+<!-- , with C = 14, R = 2, and $p_r = 1/7$ -->
+
 :::
 
-::: {.column width="60%"}
+::: {.column width="55%"}
 
 ```{r}
 #| label: SEIR-conn
@@ -153,10 +155,9 @@ rt <- plot(ans$reproductive)
 ```{r}
 #| echo: false
 #| label: SEIR-conn-plot
+#| fig-format: svg
 #| fig-width: 4
 #| fig-height: 3
-#| fig-format: svg
-#| fig-align: center
 library(ggplot2)
 ggplot(rt, aes(x = date, y = avg)) +
     geom_boxplot(aes(group = date), fill = "tomato", colour = "gray") +
@@ -164,6 +165,8 @@ ggplot(rt, aes(x = date, y = avg)) +
     theme_bw() +
     labs(x = "Day", y = "Reproductive number")
 ```
+
+:::
 
 :::
 

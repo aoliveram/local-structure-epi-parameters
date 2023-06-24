@@ -20,46 +20,47 @@ simstats <- fread("data/02-dataprep-network-stats.csv.gz")
 # Removing cases with 0 transmission
 simstats <- simstats[peak_preval > 1]
 
+# Adjust factor (approx)
+adj <- nrow(simstats) / 20000
+
 summRt <- function(val) {
 
-  simstats[, as.list(
-  quantile(.SD[[1]], probs = c(.025, .5,.975), na.rm = TRUE
-  )), by = "nettype", .SDcols = val] |>
+  # Subset of the data only using val and nettype
+  dat <- simstats[, .SD, .SDcols = c(val, "nettype")]
+
+  dat[, c(as.list(
+    quantile(.SD[[1]], probs = c(.025, .5,.975), na.rm = TRUE)),
+    list(
+      avg = mean(.SD[[1]], na.rm = TRUE) * ifelse(
+        grepl("(^rt|preval$)", val), adj, 1),
+      n   = .N
+    )),
+  by = "nettype", .SDcols = val] |>
   knitr::kable(
     caption = sprintf("%s at day 0 by network type", val),
     digits = 2
     ) |>print()
 
-  # Average of the ERGM network
-  avgs <- simstats[,
-    list(avg = mean(.SD[[1]], na.rm = TRUE)), by = "nettype",
-    .SDcols = val]
+  # Replicating the ER network
+  ntypes <- setdiff(dat[, unique(nettype)], "ergm")
+  dat_ergm <- data.table::copy(dat[nettype == "ergm", .SD, .SDcols = val])
 
-  # Average of the ERGM network
-  avg_ergm <- mean(
-    simstats[nettype == "ergm", .SD[[1]], .SDcols = val],
-    na.rm = TRUE
-    )
+  dat <- dat[nettype != "ergm"]
+  dat[, is_ergm := "no"]
+  dat_ergm[, is_ergm := "yes"]
 
-  ans <- ggplot(simstats, aes_string(x = val)) +
-    geom_histogram() +
+  for (nty in ntypes) {
+    dat <- rbindlist(list(
+      dat, 
+      dat_ergm[, nettype := nty]
+      ), use.names = TRUE)
+  }
+
+  ans <- ggplot(dat, aes(x = dat[[val]])) +
+    geom_histogram(aes(fill = is_ergm), alpha = .7) +
     facet_wrap(~nettype, ncol = 2) +
-    theme_bw() +
-    geom_vline(
-      xintercept = avg_ergm,
-      color = "red", linetype = "dashed"
-      ) +
-    geom_vline(
-      aes(xintercept = avg), avgs,
-      colour = "blue", linetype = 2
-      ) +
-    # Label to the vline "ERGM mean"
-    geom_text(
-      aes(x = 0.5, y = 0.5, label = "ERGM mean"),
-      data = data.frame(x = 0.5, y = 0.5),
-      color = "red", angle = 90, hjust = 0, vjust = 0
-      ) +
-    theme(legend.position = "none")
+    theme_bw() #+
+    # theme(legend.position = "none")
 
   ans
 
@@ -119,6 +120,14 @@ summRt("dispersion")
 ```
 
 We do observe a lower dispersion in scale-free networks compared to the ERGM networks.
+
+## Final prevalence
+
+```{r}
+#| label: final-preval
+#| echo: false
+summRt("final_preval")
+```
 
 :::
 
@@ -246,8 +255,8 @@ formulas <- lapply(depvars, function(x)
     paste0(
       x, "_diff ~ I(factor(nettype)) + ", 
       paste0(indepvars, "_diff", collapse = "+"), "+",
-      paste0(ergmvars, "_diff", collapse = "+")  #, "+",
-      # paste0(igraphvars, "_diff", collapse = "+")
+      paste0(ergmvars, "_diff", collapse = "+")  , "+",
+      paste0(igraphvars, "_diff", collapse = "+")
       )
       ))
 
