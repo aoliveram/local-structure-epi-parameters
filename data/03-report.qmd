@@ -139,6 +139,7 @@ There's no much diversity in peak time for the different network types
 ```{r}
 #| echo: false
 #| label: peak-time
+#| results: "asis"
 summRt("peak_time")
 ```
 
@@ -147,7 +148,17 @@ summRt("peak_time")
 ```{r}
 #| label: peak-preval
 #| echo: false
+#| results: "asis"
 summRt("peak_preval")
+```
+
+## Reproductive number
+
+```{r}
+#| label: r0-day0
+#| echo: false
+#| results: "asis"
+summRt("rt_0")
 ```
 
 ## Generation time
@@ -155,6 +166,7 @@ summRt("peak_preval")
 ```{r}
 #| label: gentime
 #| echo: false
+#| results: "asis"                      
 summRt("gentime")
 ```
 
@@ -165,6 +177,7 @@ Scale-free networks show a higher generation time than ERGM networks.
 ```{r}
 #| label: dispersion
 #| echo: false
+#| results: "asis"
 summRt("dispersion")
 ```
 
@@ -175,64 +188,12 @@ We do observe a lower dispersion in scale-free networks compared to the ERGM net
 ```{r}
 #| label: final-preval
 #| echo: false
+#| results: "asis"
 summRt("final_preval")
 ```
 
 :::
 
-# Reproductive number
-
-::: {.panel-tabset}
-
-## Average
-
-```{r}
-#| label: r0-avg
-#| echo: false
-summRt("rt")
-```
-
-## Day 0
-
-```{r}
-#| label: r0-day0
-#| echo: false
-summRt("rt_0")
-```
-
-## Day 1
-
-```{r}
-#| label: r0-day1
-#| echo: false
-summRt("rt_1")
-```
-
-## Day 2
-
-```{r}
-#| label: r0-day2
-#| echo: false
-summRt("rt_2")
-```
-
-## Day 3
-
-```{r}
-#| label: r0-day3
-#| echo: false
-summRt("rt_3")
-```
-
-## Day 4
-
-```{r}
-#| label: r0-day4
-#| echo: false
-summRt("rt_4")
-```
-
-:::
 
 ## Model fitting
 
@@ -241,6 +202,7 @@ summRt("rt_4")
 ```{r}
 #| label: adjusting-igraph
 #| cache: true
+#| echo: false
 # Histogram plot of all variables in igraph_vars combined
 igraph_vars <- grep("^igraph", names(simstats), value = TRUE)
 
@@ -266,6 +228,7 @@ Variables have wild scales. We need to scale them before fitting the model.
 ```{r}
 #| label: ergm-proc-ggplot
 #| cache: true
+#| echo: false
 # Same procedure for the ergm_vars
 ergm_vars <- grep("^ergm", names(simstats), value = TRUE)
 
@@ -277,6 +240,9 @@ ggplot(ergm_vars_long, aes(x = value)) +
 ```
 
 ```{r}
+#| label: ergm-proc
+#| cache: true
+#| echo: false
 # Scaling the variables ergm_edges, ergm_nodematch* and ergm_triangle by log
 toscale <- setdiff(ergm_vars, "ergm_isolates")
 simstats[,  c(toscale) := lapply(.SD, log), .SDcols = toscale]
@@ -297,6 +263,8 @@ ggplot(ergm_vars_long, aes(x = value)) +
 ::: {.panel-tabset}
 
 ```{r}
+#| label: models
+#| echo: false
 library(texreg)
 
 vars <- c(ergm_vars, igraph_vars)
@@ -363,7 +331,6 @@ model_peak_preval <- update(baseline, paste(depvars[2], "~.", terms2add))
 model_rt <- update(baseline, paste(depvars[3], "~.", terms2add))
 model_dispersion <- update(baseline, paste0("I(log(", depvars[4], "))~.", terms2add))
 model_final_preval <- update(baseline, paste(depvars[5], "~.", terms2add))
-
 
 # Run the models
 model_peak_preval  <- glm(model_peak_preval, data = simstats)
