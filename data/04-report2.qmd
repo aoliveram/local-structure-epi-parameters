@@ -16,48 +16,53 @@ We first reload the original data to take the raw values
 library(data.table)
 library(ggplot2)
 simstats <- fread("data/02-dataprep-network-stats.csv.gz")
+
+# Removing cases with 0 transmission
+simstats <- simstats[peak_preval > 1]
+
+# Adjust factor (approx)
+adj <- nrow(simstats) / 20000
+
 summRt <- function(val) {
 
-  # Average of the ERGM network
-  avgs <- simstats[,
-    list(avg = mean(.SD[[1]], na.rm = TRUE)), by = "nettype",
-    .SDcols = val]
+  # Subset of the data only using val and nettype
+  dat <- simstats[, .SD, .SDcols = c(val, "nettype")]
 
-  # Average of the ERGM network
-  avg_ergm <- mean(
-    simstats[nettype == "ergm", .SD[[1]], .SDcols = val],
-    na.rm = TRUE
-    )
-
-  ans <- ggplot(simstats, aes_string(x = val)) +
-    geom_histogram() +
-    facet_wrap(~nettype, ncol = 2) +
-    theme_bw() +
-    geom_vline(
-      xintercept = avg_ergm,
-      color = "red", linetype = "dashed"
-      ) +
-    geom_vline(
-      aes(xintercept = avg), avgs,
-      colour = "blue", linetype = 2
-      ) +
-    # Label to the vline "ERGM mean"
-    geom_text(
-      aes(x = 0.5, y = 0.5, label = "ERGM mean"),
-      data = data.frame(x = 0.5, y = 0.5),
-      color = "red", angle = 90, hjust = 0, vjust = 0
-      ) +
-    theme(legend.position = "none")
-
-  print(ans)
-
-  simstats[, as.list(
-  quantile(.SD[[1]], probs = c(.025, .5,.975), na.rm = TRUE
-  )), by = "nettype", .SDcols = val] |>
+  dat[, c(as.list(
+    quantile(.SD[[1]], probs = c(.025, .5,.975), na.rm = TRUE)),
+    list(
+      avg = mean(.SD[[1]], na.rm = TRUE) * ifelse(
+        grepl("(^rt|preval$)", val), adj, 1),
+      n   = .N
+    )),
+  by = "nettype", .SDcols = val] |>
   knitr::kable(
     caption = sprintf("%s at day 0 by network type", val),
     digits = 2
-    )
+    ) |>print()
+
+  # Replicating the ER network
+  ntypes <- setdiff(dat[, unique(nettype)], "ergm")
+  dat_ergm <- data.table::copy(dat[nettype == "ergm", .SD, .SDcols = val])
+
+  dat <- dat[nettype != "ergm"]
+  dat[, is_ergm := "no"]
+  dat_ergm[, is_ergm := "yes"]
+
+  for (nty in ntypes) {
+    dat <- rbindlist(list(
+      dat, 
+      dat_ergm[, nettype := nty]
+      ), use.names = TRUE)
+  }
+
+  ans <- ggplot(dat, aes(x = dat[[val]])) +
+    geom_histogram(aes(fill = is_ergm), alpha = .7) +
+    facet_wrap(~nettype, ncol = 2) +
+    theme_bw() #+
+    # theme(legend.position = "none")
+
+  ans
 
 }
 ```
@@ -87,13 +92,7 @@ There's no much diversity in peak time for the different network types
 ```{r}
 #| echo: false
 #| label: peak-time
-simstats[, table(nettype, peak_time)] |> knitr::kable()
-
-ggplot(simstats, aes(x = peak_time)) +
-  geom_histogram(binwidth = 1) +
-  # facet_wrap(~nettype, ncol = 2) +
-  theme_bw() 
-  # theme(legend.position = "none")
+summRt("peak_time")
 ```
 
 ## Peak prevalence
@@ -122,11 +121,27 @@ summRt("dispersion")
 
 We do observe a lower dispersion in scale-free networks compared to the ERGM networks.
 
+## Final prevalence
+
+```{r}
+#| label: final-preval
+#| echo: false
+summRt("final_preval")
+```
+
 :::
 
 # Reproductive number
 
 ::: {.panel-tabset}
+
+## Average
+
+```{r}
+#| label: r0-avg
+#| echo: false
+summRt("rt")
+```
 
 ## Day 0
 
@@ -167,8 +182,6 @@ summRt("rt_3")
 #| echo: false
 summRt("rt_4")
 ```
-
-
 
 :::
 
@@ -228,6 +241,7 @@ for (var in c(ergmvars, igraphvars, depvars, indepvars)) {
 
 
 ```{r}
+#| eval: true
 # For now, excluding igraph_avg_closeness_diff.
 # It is usually zero b/c of degseq (has isolates)
 igraphvars <- setdiff(igraphvars, "igraph_avg_closeness")
@@ -237,9 +251,9 @@ igraphvars <- setdiff(igraphvars, "igraph_avg_closeness")
 formulas <- lapply(depvars, function(x) 
   as.formula(
     paste0(
-      x, "_diff ~ I(factor(nettype)) + ",
+      x, "_diff ~ I(factor(nettype)) + ", 
       paste0(indepvars, "_diff", collapse = "+"), "+",
-      paste0(ergmvars, "_diff", collapse = "+") , "+",
+      paste0(ergmvars, "_diff", collapse = "+")  , "+",
       paste0(igraphvars, "_diff", collapse = "+")
       )
       ))
@@ -250,7 +264,7 @@ simstats[, paste0(igraphvars, "_diff") := lapply(.SD, scale, scale = TRUE), .SDc
 simstats[, paste0(depvars, "_diff") := lapply(.SD, scale, scale = TRUE), .SDcols = paste0(depvars, "_diff")]
 
 # Fitting the models
-models <- lapply(formulas, function(x) lm(x, data = simstats))
+models <- lapply(formulas[1:4], function(x) lm(x, data = simstats))
 ```
 
 
@@ -261,12 +275,13 @@ models <- lapply(formulas, function(x) lm(x, data = simstats))
 
 ```{r}
 #| results: "asis"
+#| eval: true
 # library(stargazer)
 # stargazer(models, type = "text", omit.stat = c("f", "ser"), omit.table.layout = "n")
 texreg::knitreg(
   setNames(
     models, 
-    depvars
+    depvars[1:4]
   ), single.row = TRUE)
 ```
 

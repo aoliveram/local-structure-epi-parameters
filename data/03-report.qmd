@@ -7,16 +7,94 @@ execute:
   warning: false
 ---
 
-
 ```{r}
 #| echo: false
 library(data.table)
 library(ggplot2)
-
 simstats <- fread("data/02-dataprep-network-stats.csv.gz")
+
+# Removing cases with 0 transmission
+simstats <- simstats[peak_preval > 1]
+
+# Adjust factor (approx)
+adj <- nrow(simstats) / 20000
+
+# Making val fancy
+vallabs <- c(
+  peak_time = "Peak time",
+  peak_preval = "Peak prevalence",
+  rt = "Reproductive number",
+  rt_mean = "Average reproductive number",
+  dispersion = "Dispersion",
+  gentime = "Generation time",
+  final_preval = "Final prevalence"
+)
+
+# Mapping the nettype to a more readable name
+simstats[, nettype := factor(
+  nettype,
+  levels = c("ergm", "sf", "sw", "degseq", "er"),
+  labels = c("ERGM", "Scale-free", "Small-world", "Degree-sequence", "Erdos-Renyi")
+  )]
+
+summRt <- function(val) {
+
+  # Subset of the data only using val and nettype
+  dat <- simstats[, .SD, .SDcols = c(val, "nettype")]
+
+  nsims <- dat[, .N]
+
+  dat[, c(as.list(
+    quantile(.SD[[1]], probs = c(.025, .5,.975), na.rm = TRUE)),
+    list(
+      avg = mean(.SD[[1]], na.rm = TRUE) * ifelse(
+        grepl("(^rt|preval$)", val), adj, 1),
+      n   = .N
+    )),
+  by = "nettype", .SDcols = val] |>
+  knitr::kable(
+    caption = sprintf("%s at day 0 by network type", val),
+    digits = 2
+    ) |>print()
+
+  # Replicating the ER network
+  ntypes <- setdiff(dat[, unique(nettype)], "ERGM")
+  dat_ergm <- data.table::copy(dat[nettype == "ERGM", .SD, .SDcols = val])
+
+  dat <- dat[nettype != "ERGM"]
+  dat[, is_ergm := "no"]
+  dat_ergm[, is_ergm := "yes"]
+
+  for (nty in ntypes) {
+    dat <- rbindlist(list(
+      dat, 
+      dat_ergm[, nettype := nty]
+      ), use.names = TRUE)
+  }
+
+  # Drawing the histogram plot
+  ans <- ggplot(dat, aes(x = dat[[val]])) +
+    theme_bw() +
+    geom_histogram(aes(fill = is_ergm), alpha = .7) +
+    facet_wrap(~nettype, ncol = 2) +
+    labs(
+      x = vallabs[val],
+      y = "Frequency",
+      title = sprintf("%s by network type", vallabs[val]),
+      subtitle = "(comparing with ERGM networks)",
+      caption = sprintf(
+        "Comparing %s simulations",
+        prettyNum(nsims, big.mark = ",")
+        ),
+      fill = "ERGM"
+    )
+
+  ans
+
+}
 ```
 
-## Context
+# Context
 
 - We fitted an ERGM to the school network data.
 
@@ -31,84 +109,192 @@ simstats <- fread("data/02-dataprep-network-stats.csv.gz")
   - Transmission rate between `r simstats[, quantile(transmission_rate, na.rm = TRUE, probs = c(.025, .975))]`
   - Recovery rate between `r simstats[, quantile(recovery_rate, na.rm = TRUE, probs = c(.025, .975))]`
 
-## Visual inspection
+
+# Pairwise comparisons with the original network
+
+
+
+Here are the variables we are interested in
 
 ```{r}
-ggplot(simstats[final_preval > 0]) +
-  geom_histogram(aes(x = final_preval)) +
-  scale_y_log10() +
-  labs(
-    x = "Final prevalence",
-    y = "Outbreak size\n(log10)",
-  )
+# Dependent variables
+depvars <- c("peak_time", "peak_preval", "rt", "rt_mean", "dispersion", "gentime")
 
-ggplot(simstats) +
-  geom_point(aes(x = rt, y = ergm_triangle, colour = nettype)) 
+# Independent variables
+indepvars <- c("inc_days", "recovery_rate", "transmission_rate")
 
-ggplot(simstats) +
-  geom_jitter(aes(x = rt, y = final_preval, colour = nettype)) +
-  scale_y_log10() +
-  labs(
-    x = "Reproduction number",
-    y = "Outbreak size\n(log10)",
-  )
-
-# A group of figures showing the outbreak size as 
-# a function of the igraph_* variables in the dataset simstats
-igraph_vars <- grep("^igraph", names(simstats), value = TRUE)
-
-igraph_vars <- setdiff(
-  igraph_vars, c(
-    "igraph_diameter",
-    "igraph_components"
-    ))
-
-graphs <- list()
-for (igraph_var in igraph_vars) {
-  graphs[[igraph_var]] <-
-    ggplot(simstats) +
-      geom_point(aes_string(x = "final_preval", y = igraph_var, colour = "nettype")) +
-      scale_y_log10() +
-      labs(
-        x = "Outbreak size (log10)",
-        y = igraph_var,
-      )
-}
-
-# Build the same graphs for the ergm_* variables
-ergm_vars <- grep("^ergm", names(simstats), value = TRUE)
-
-graphs_ergm <- list()
-for (ergm_var in ergm_vars) {
-  graphs_ergm[[ergm_var]] <-
-    ggplot(simstats) +
-      geom_point(aes_string(x = "final_preval", y = ergm_var, colour = "nettype")) +
-      scale_y_log10() +
-      labs(
-        x = "Outbreak size (log10)",
-        y = ergm_var,
-      )
-}
-
-# Use the patchwork R package to combine the graphs
-library(patchwork)
-wrap_plots(graphs[1:4], ncol = 2, nrow = 2)
-wrap_plots(graphs[5:8], ncol = 2, nrow = 2)
-wrap_plots(graphs_ergm[1:4], ncol = 2, nrow = 2)
-wrap_plots(graphs_ergm[5:8], ncol = 2, nrow = 2)
+# Listing variables starting with ergm and igraph separately
+ergmvars <- grep("^ergm", names(simstats), value = TRUE)
+igraphvars <- grep("^igraph", names(simstats), value = TRUE)
 ```
+
+# Differences between network types
+
+::: {.panel-tabset}
+
+## Peak time
+
+There's no much diversity in peak time for the different network types
+
+```{r}
+#| echo: false
+#| label: peak-time
+summRt("peak_time")
+```
+
+## Peak prevalence
+
+```{r}
+#| label: peak-preval
+#| echo: false
+summRt("peak_preval")
+```
+
+## Generation time
+
+```{r}
+#| label: gentime
+#| echo: false
+summRt("gentime")
+```
+
+Scale-free networks show a higher generation time than ERGM networks.
+
+## Dispersion
+
+```{r}
+#| label: dispersion
+#| echo: false
+summRt("dispersion")
+```
+
+We do observe a lower dispersion in scale-free networks compared to the ERGM networks.
+
+## Final prevalence
+
+```{r}
+#| label: final-preval
+#| echo: false
+summRt("final_preval")
+```
+
+:::
+
+# Reproductive number
+
+::: {.panel-tabset}
+
+## Average
+
+```{r}
+#| label: r0-avg
+#| echo: false
+summRt("rt")
+```
+
+## Day 0
+
+```{r}
+#| label: r0-day0
+#| echo: false
+summRt("rt_0")
+```
+
+## Day 1
+
+```{r}
+#| label: r0-day1
+#| echo: false
+summRt("rt_1")
+```
+
+## Day 2
+
+```{r}
+#| label: r0-day2
+#| echo: false
+summRt("rt_2")
+```
+
+## Day 3
+
+```{r}
+#| label: r0-day3
+#| echo: false
+summRt("rt_3")
+```
+
+## Day 4
+
+```{r}
+#| label: r0-day4
+#| echo: false
+summRt("rt_4")
+```
+
+:::
 
 ## Model fitting
 
-```{r}
-# Scale all the variables starting with igraph in simstats
-igraph_vars <- grep("^igraph", names(simstats), value = TRUE)
-simstats[, (igraph_vars) := lapply(.SD, scale), .SDcols = igraph_vars]
+### Igraph variables
 
-# Do the same with the vars starting with ergm
-ergm_vars <- grep("^ergm", names(simstats), value = TRUE)
-simstats[, (ergm_vars) := lapply(.SD, scale), .SDcols = ergm_vars]
+```{r}
+#| label: adjusting-igraph
+#| cache: true
+# Histogram plot of all variables in igraph_vars combined
+igraph_vars <- grep("^igraph", names(simstats), value = TRUE)
+
+# Reshape long all igraph_vars 
+igraph_vars_long <- melt(simstats[, c("nettype", igraph_vars), with = FALSE], id.vars = "nettype")
+
+# Plot the histogram by variable
+ggplot(igraph_vars_long, aes(x = value)) +
+  geom_histogram(aes(colour = nettype)) +
+  facet_wrap(~variable, scales = "free") 
+
+# simstats[, igraph_avg_closeness/sd(igraph_avg_closeness, na.rm = TRUE)] |> hist()
+
+# Transforming to divide by the standard deviation
+simstats[, igraph_avg_closeness := scale(igraph_avg_closeness)]
+
 ```
+
+Variables have wild scales. We need to scale them before fitting the model. 
+
+### ERGM variables
+
+```{r}
+#| label: ergm-proc-ggplot
+#| cache: true
+# Same procedure for the ergm_vars
+ergm_vars <- grep("^ergm", names(simstats), value = TRUE)
+
+ergm_vars_long <- melt(simstats[, c("nettype", ergm_vars), with = FALSE], id.vars = "nettype")
+
+ggplot(ergm_vars_long, aes(x = value)) +
+  geom_histogram() +
+  facet_wrap(~variable, scales = "free") 
+```
+
+```{r}
+# Scaling the variables ergm_edges, ergm_nodematch* and ergm_triangle by log
+toscale <- setdiff(ergm_vars, "ergm_isolates")
+simstats[,  c(toscale) := lapply(.SD, log), .SDcols = toscale]
+
+# Redoing the previous figure
+ergm_vars_long <- melt(
+  simstats[, c("nettype", toscale), with = FALSE],
+  id.vars = "nettype"
+  )
+
+ggplot(ergm_vars_long, aes(x = value)) +
+  geom_histogram(aes(colour = nettype)) +
+  facet_wrap(~variable, scales = "free") 
+```
+
+# Models
+
+::: {.panel-tabset}
 
 ```{r}
 library(texreg)
@@ -118,9 +304,87 @@ vars <- c(ergm_vars, igraph_vars)
 # Main parameters
 vars <- c(vars, "transmission_rate", "inc_days", "recovery_rate")
 
-baseline <- paste("~ I(factor(nettype)) + ", paste(vars, collapse = " + ")) |>
-  as.formula()
+# Removing some params
+vars <- setdiff(vars, c("ergm_gwdeg.fixed.0.25", "transmission_rate"))
+
+vars <- c(vars, "log(transmission_rate)")
+
+depvars <- c(
+  "peak_time", "peak_preval", "rt_0", "dispersion", "final_preval")
 ```
+
+## Fixed effect only
+
+::: {style="font-size:70%"}
+
+```{r}
+#| echo: false
+#| label: models-fe
+#| output: asis
+baseline <- ~ I(factor(nettype))
+model_peak_time <- update(baseline, paste(depvars[1], "~."))
+model_peak_preval <- update(baseline, paste(depvars[2], "~."))
+model_rt <- update(baseline, paste(depvars[3], "~."))
+model_dispersion <- update(baseline, paste0("I(log(", depvars[4], "))~."))
+model_final_preval <- update(baseline, paste(depvars[5], "~."))
+
+# Run the models
+model_peak_preval  <- glm(model_peak_preval, data = simstats)
+model_peak_time    <- glm(model_peak_time, data = simstats)
+model_rt           <- glm(model_rt, data = simstats)
+model_dispersion   <- glm(model_dispersion, data = simstats[is.finite(dispersion)])
+model_final_preval <- glm(model_final_preval, data = simstats, family = poisson())
+
+texreg::knitreg(
+  list(
+    peak_preval = model_peak_preval,
+    peak_time = model_peak_time,
+    rt = model_rt,
+    dispersion = model_dispersion,
+    final_preval = model_final_preval
+  ), single.row = TRUE)
+```
+
+:::
+
+## Adding simple structural terms
+
+::: {style="font-size:70%"}
+
+```{r}
+#| echo: false
+#| output: asis
+#| label: models-simple
+terms2add <- "+ ergm_triangle + igraph_density + igraph_avg_path_length + ergm_nodematch.grade"
+
+baseline <- ~ I(factor(nettype))
+model_peak_time <- update(baseline, paste(depvars[1], "~. + ", terms2add))
+model_peak_preval <- update(baseline, paste(depvars[2], "~.", terms2add))
+model_rt <- update(baseline, paste(depvars[3], "~.", terms2add))
+model_dispersion <- update(baseline, paste0("I(log(", depvars[4], "))~.", terms2add))
+model_final_preval <- update(baseline, paste(depvars[5], "~.", terms2add))
+
+
+# Run the models
+model_peak_preval  <- glm(model_peak_preval, data = simstats)
+model_peak_time    <- glm(model_peak_time, data = simstats)
+model_rt           <- glm(model_rt, data = simstats)
+model_dispersion   <- glm(model_dispersion, data = simstats[is.finite(dispersion)])
+model_final_preval <- glm(model_final_preval, data = simstats, family = poisson())
+
+texreg::knitreg(
+  list(
+    peak_preval = model_peak_preval,
+    peak_time = model_peak_time,
+    rt = model_rt,
+    dispersion = model_dispersion,
+    final_preval = model_final_preval
+  ), single.row = TRUE)
+```
+
+:::
+
+## Full models
 
 ```{r}
 
@@ -128,22 +392,25 @@ baseline <- paste("~ I(factor(nettype)) + ", paste(vars, collapse = " + ")) |>
 # replacing the lhs of the formula with rt, peak_time, and final_preval
 
 depvars <- c(
-  "peak_time", "peak_preval", "rt", "dispersion", "final_preval")
+  "peak_time", "peak_preval", "rt_0", "dispersion", "final_preval")
+
+baseline <- paste("~ I(factor(nettype)) + ", paste(vars, collapse = " + ")) |>
+  as.formula()
 
 model_peak_time <- update(baseline, paste(depvars[1], "~."))
 model_peak_preval <- update(baseline, paste(depvars[2], "~."))
 model_rt <- update(baseline, paste(depvars[3], "~."))
-model_dispersion <- update(baseline, paste(depvars[4], "~."))
+model_dispersion <- update(baseline, paste0("I(log(", depvars[4], "))~."))
 model_final_preval <- update(baseline, paste(depvars[5], "~."))
 ```
 
 ```{r}
 #| echo: false
 # Run the models
-model_peak_preval <- glm(model_peak_preval, data = simstats)
-model_peak_time <- glm(model_peak_time, data = simstats)
-model_rt <- glm(model_rt, data = simstats)
-model_dispersion <- glm(model_dispersion, data = simstats)
+model_peak_preval  <- glm(model_peak_preval, data = simstats)
+model_peak_time    <- glm(model_peak_time, data = simstats)
+model_rt           <- glm(model_rt, data = simstats)
+model_dispersion   <- glm(model_dispersion, data = simstats[is.finite(dispersion)])
 model_final_preval <- glm(model_final_preval, data = simstats, family = poisson())
 ```
 
@@ -163,3 +430,4 @@ texreg::knitreg(
 
 :::
 
+:::

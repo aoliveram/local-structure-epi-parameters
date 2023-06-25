@@ -1,0 +1,36 @@
+---
+format: html
+---
+
+
+```{r}
+library(epiworldR)
+
+n      <- 1e4
+p_r    <- 1/3
+C_rate <- 7
+R0     <- 1.5
+
+# This function calculates the transmission rate
+# as a function of the contact rate
+p_t <- function(C_rate) {
+  p_r/(C_rate/R0 + p_r - 1)
+}
+```
+
+```{r}
+x <- ModelSEIRCONN(
+    name              = "as", 
+    n                 = n, 
+    prevalence        = 10/n,
+    contact_rate      = C_rate,
+    transmission_rate = p_t,
+    recovery_rate     = p_r,
+    incubation_days   = 7
+    )
+
+run_multiple(x, ndays = 50, nsims = 500, seed = 111, nthreads = 6, saver = make_saver("reproductive"))
+
+ans <- run_multiple_get_results(x)
+rt <- plot(ans$reproductive)
+```
