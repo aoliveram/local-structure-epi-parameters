@@ -20,35 +20,23 @@ graph_files <- list.files("data/graphs", full.names = TRUE)
 
 # Set the parameters
 nsims <- 20000
-Njobs <- 20L
+Njobs <- 40L
 
 # Set the slurmR options
 SB_OPTS <- list(
     account    = "vegayon-np",
     partition  = "vegayon-shared-np",
-    mem        = "64G"
+    mem        = "8G"
     )
 
-# Sampling infectiousness from a beta distribution
-# This has mean 0.3 and sd 0.05
-alpha <- 5
-beta <- 200
-transmission_rates <- rbeta(nsims, alpha, beta)
 
-# Sampling incubation days from a Gamma distribution
-# This has mean 7 and variance 7
-alpha <- 7 * 2
-beta <- 1 * 2
-incubation_days <- ceiling(rgamma(nsims, alpha, beta))
+# Model parameters
+incubation_days    <- 7
+recovery_rates     <- 1/7
+contact_rates      <- 14 # Average observed
+reproductive       <- 2
+transmission_rates <- recovery_rates/(contact_rates/reproductive + recovery_rates - 1) # Analytical sol
 
-# Sampling recovery rate from a beta distribution
-# This has mean 0.3 and variance 0.02
-alpha <- 20
-beta <- 50
-recovery_rates <- rbeta(nsims, alpha, beta)
-
-# Set the temporary path of slurmR
-# opts_slurmR$set_tmp_path("/tmp")
 
 # Group infectiousness and recovery_rate into a list of length
 # nsims featuring one element per simulation
@@ -141,7 +129,7 @@ res <- Slurm_lapply(params, FUN = \(param) {
       )
 
     # Running the simulation
-    run(model, ndays = 50, seed = param$seed)
+    run(model, ndays = 100, seed = param$seed)
 
     # Get the results
     saveRDS(list(
@@ -171,13 +159,13 @@ res <- Slurm_lapply(params, FUN = \(param) {
   ans
 
 }, njobs = Njobs, sbatch_opt = SB_OPTS, job_name = "abm-simulation-lapply",
-plan = "wait")
+plan = "collect")
 
-print(res)
+# print(res)
 
 # Saving the results under data/
 saveRDS(
-  Slurm_collect(res, any. = TRUE), file = "data/01-abm-simulation-fn.rds", 
+  res, file = "data/01-abm-simulation-fn.rds", 
   compress = FALSE
   )
 

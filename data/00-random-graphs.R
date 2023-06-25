@@ -62,7 +62,7 @@ networks_sf <- parallel::mclapply(seq_along(networks), \(i) {
 
   m <- igraph::sample_pa(
     n_nodes, power = 1,
-    m = rgamma(1, n_edges/n_nodes * 10, 10),
+    m = n_edges/n_nodes,
     directed = FALSE
   )
 
@@ -99,9 +99,10 @@ networks_sw <- parallel::mclapply(seq_along(networks), \(i) {
   n_edges <- network::network.edgecount(n)
 
   m <- igraph::sample_smallworld(
-    n_nodes, dim = 1,
-    nei = rgamma(1, n_edges/n_nodes * 10, 10),
-    p = 0.2
+    n_nodes,
+    dim = 1,
+    nei = ceiling(mean(sna::degree(n, gmode="graph", cmode = "indegree"))),
+    p   = 0.1
     )
 
   for (a in names(v_attrs))
@@ -155,5 +156,44 @@ networks_r <- parallel::mclapply(seq_along(networks), \(i) {
 
 }, mc.cores = ncores)
 message("Done degree-sequence preserve rewiring of the networks")
+
+# Erdos-Renyi networks with same density and size
+# as the original networks
+message("Simulating Erdos-Renyi networks")
+networks_er <- parallel::mclapply(seq_along(networks), \(i) {
+
+  # Checking out if the file already exists
+  fn <- sprintf("data/graphs/%04i-er.rds", i)
+
+  if (file.exists(fn))
+    return(NULL)
+  
+  set.seed(random_seeds[i])
+
+  n <- networks[[i]]
+
+  # Number of vertices in a "network" object
+  n_edges <- network::network.edgecount(n)
+
+  m <- igraph::sample_gnm(
+    n = n_nodes, 
+    m = n_edges,
+    directed = FALSE,
+    loops    = FALSE
+  )
+
+  for (a in names(v_attrs))
+    m <- set_vertex_attr(m, name = a, value = v_attrs[[a]])
+
+  # Turning m into a network object
+  m <- intergraph::asNetwork(m)
+
+  # Writing the network to a file 
+  saveRDS(m, fn, compress = FALSE)
+
+  NULL
+
+}, mc.cores = ncores)
+message("Done simulating Erdos-Renyi the networks")
 
 message("Done saving the networks")

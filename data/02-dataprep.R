@@ -20,12 +20,12 @@ ncores <- 30
 # Read the Simulated data rds file from data/
 message("Loading the networks files")
 networks <- list.files(
-  "data/graphs", pattern = "[0-9]+-(ergm|sf|sw|degseq)\\.rds$",full.names = TRUE) 
+  "data/graphs", pattern = "[0-9]+-(ergm|sf|sw|degseq|er)\\.rds$",full.names = TRUE) 
 
 # File name for each type
-fn_ergm <- "data/02-dataprep-ergm.csv.gz"
+fn_ergm   <- "data/02-dataprep-ergm.csv.gz"
 fn_igraph <- "data/02-dataprep-igraph.csv.gz"
-fn_sim <- "data/02-dataprep-sim.csv.gz"
+fn_sim    <- "data/02-dataprep-sim.csv.gz"
 
 # Computing statistics using ERGM
 if (!file.exists(fn_ergm)) {
