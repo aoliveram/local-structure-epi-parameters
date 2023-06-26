@@ -82,11 +82,11 @@ message("Done simulating scalefree networks")
 
 # Simulating smallworkd networks with same density and size
 # as the original networks
-message("Simulating smallworld networks")
+message("Simulating smallworld networks p=0.1")
 networks_sw <- parallel::mclapply(seq_along(networks), \(i) {
 
   # Checking out if the file already exists
-  fn <- sprintf("data/graphs/%04i-sw.rds", i)
+  fn <- sprintf("data/graphs/%04i-swp01.rds", i)
 
   if (file.exists(fn))
     return(NULL)
@@ -98,10 +98,14 @@ networks_sw <- parallel::mclapply(seq_along(networks), \(i) {
   # Number of vertices in a "network" object
   n_edges <- network::network.edgecount(n)
 
+  nneigh <- ceiling(mean(sna::degree(n, gmode="graph", cmode = "indegree")))/2
+
+  # Adding a bit noise
+  nneigh <- nneigh + ceiling(runif(1, -.1, .1) * nneigh)
   m <- igraph::sample_smallworld(
     n_nodes,
     dim = 1,
-    nei = ceiling(mean(sna::degree(n, gmode="graph", cmode = "indegree")))/2,
+    nei = nneigh,
     p   = 0.1
     )
 
@@ -118,6 +122,49 @@ networks_sw <- parallel::mclapply(seq_along(networks), \(i) {
     
 }, mc.cores = ncores)
 message("Done simulating smallworld networks")
+
+# Small-world with a larger number of rewires ----------------------------------
+
+message("Simulating smallworld networks p=0.2")
+networks_sw <- parallel::mclapply(seq_along(networks), \(i) {
+
+  # Checking out if the file already exists
+  fn <- sprintf("data/graphs/%04i-swp02.rds", i)
+
+  if (file.exists(fn))
+    return(NULL)
+  
+  set.seed(random_seeds[i])
+
+  n <- networks[[i]]
+
+  # Number of vertices in a "network" object
+  n_edges <- network::network.edgecount(n)
+
+  nneigh <- ceiling(mean(sna::degree(n, gmode="graph", cmode = "indegree")))/2
+
+  # Adding a bit noise
+  nneigh <- nneigh + ceiling(runif(1, -.1, .1) * nneigh)
+  m <- igraph::sample_smallworld(
+    n_nodes,
+    dim = 1,
+    nei = nneigh,
+    p   = 0.2
+    )
+
+  for (a in names(v_attrs))
+    m <- set_vertex_attr(m, name = a, value = v_attrs[[a]])
+
+  # Turning m into a network object
+  m <- intergraph::asNetwork(m)
+
+  # Writing the network to a file 
+  saveRDS(m, fn, compress = FALSE)
+
+  NULL
+    
+}, mc.cores = ncores)
+message("Done simulating smallworld networks p0.2")
 
 # Degree-sequence preserve rewiring of the networks
 message("Degree-sequence preserve rewiring of the networks")
