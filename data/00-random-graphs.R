@@ -1,12 +1,11 @@
 #!/bin/sh
 #SBATCH --account=vegayon-np
 #SBATCH --partition=vegayon-shared-np
-#SBATCH --job-name=00-rand-graphs
+#SBATCH --job-name=00-random-graphs
 #SBATCH --output=00-rand-graphs-%j.out
 #SBATCH --mail-type=END
 #SBATCH --mail-user=george.vegayon@utah.edu
-#SBATCH --ntasks=21
-#SBATCH --mem=64G
+#SBATCH --mem=20G
 #SBATCH --time=4:00:00
 
 library(epiworldR)
@@ -16,36 +15,53 @@ library(igraph)
 
 # Set the seed for reproducibility
 set.seed(1231)
-ncores <- 20L
+ncores <- 30L
+
+# Set the slurmR options
+SB_OPTS <- list(
+  account    = "vegayon-np",
+  partition  = "vegayon-shared-np",
+  mem        = "8G"
+  )
+
 
 # Load the simulated networks from the RDS file
 message("Loading the networks")
-networks <- readRDS("data/Simulated_1000_networks.rds")
+
 message("Done loading the networks")
 
 # Saving the networks as individual graphs
-for (i in seq_along(networks)) {
+if (!file.exists(sprintf("data/graphs/%04i-ergm.rds", 1))) {
 
-  fn <- sprintf("data/graphs/%04i-ergm.rds", i)
+  networks <- readRDS("data/Simulated_1000_networks.rds")
 
-  if (file.exists(fn))
-    next
+  for (i in seq_along(networks)) {
 
-  saveRDS(networks[[i]], fn, compress = FALSE)
+    fn <- sprintf("data/graphs/%04i-ergm.rds", i)
+
+    if (file.exists(fn))
+      next
+
+    saveRDS(networks[[i]], fn, compress = FALSE)
+
+  }
 
 }
 
+net1 <- readRDS("data/graphs/0001-ergm.rds")
+networks <- list.files("data/graphs", pattern = "[0-9]+-ergm\\.rds$", full.names = TRUE)
+
 # All networks have the same attributes. So we get them once
-v_attrs <- as.data.frame(networks[[1]], unit = "vertices") |>
+v_attrs <- as.data.frame(net1, unit = "vertices") |>
   as.list()
 
-n_nodes <- network::network.size(networks[[1]])
+n_nodes <- network::network.size(net1)
 
 # Simulating scalefree networks with same density and size
 # as the original networks
 message("Simulating scalefree networks")
 random_seeds <- sample.int(1e6, length(networks), replace = FALSE)
-networks_sf <- parallel::mclapply(seq_along(networks), \(i) {
+networks_sf <- Slurm_lapply(seq_along(networks), \(i) {
 
   # Checking out if the file already exists
   fn <- sprintf("data/graphs/%04i-sf.rds", i)
@@ -55,7 +71,7 @@ networks_sf <- parallel::mclapply(seq_along(networks), \(i) {
   
   set.seed(random_seeds[i])
 
-  n <- networks[[i]]
+  n <- readRDS(sprintf("data/graphs/%04i-ergm.rds", i))
 
   # Number of vertices in a "network" object
   n_edges <- network::network.edgecount(n)
@@ -77,13 +93,15 @@ networks_sf <- parallel::mclapply(seq_along(networks), \(i) {
 
   NULL
 
-}, mc.cores = ncores)
+}, sbatch_opt = SB_OPTS, njobs = ncores,
+  export = c("v_attrs", "n_nodes", "random_seeds")
+  )
 message("Done simulating scalefree networks")
 
 # Simulating smallworkd networks with same density and size
 # as the original networks
 message("Simulating smallworld networks p=0.1")
-networks_sw <- parallel::mclapply(seq_along(networks), \(i) {
+networks_sw <- Slurm_lapply(seq_along(networks), \(i) {
 
   # Checking out if the file already exists
   fn <- sprintf("data/graphs/%04i-swp01.rds", i)
@@ -93,7 +111,7 @@ networks_sw <- parallel::mclapply(seq_along(networks), \(i) {
   
   set.seed(random_seeds[i])
 
-  n <- networks[[i]]
+  n <- readRDS(sprintf("data/graphs/%04i-ergm.rds", i))
 
   # Number of vertices in a "network" object
   n_edges <- network::network.edgecount(n)
@@ -120,13 +138,15 @@ networks_sw <- parallel::mclapply(seq_along(networks), \(i) {
 
   NULL
     
-}, mc.cores = ncores)
-message("Done simulating smallworld networks")
+}, njobs = ncores, sbatch_opt = SB_OPTS,
+  export = c("v_attrs", "n_nodes", "random_seeds")
+)
+message("Done simulating smallworld p=0.1 networks")
 
 # Small-world with a larger number of rewires ----------------------------------
 
 message("Simulating smallworld networks p=0.2")
-networks_sw <- parallel::mclapply(seq_along(networks), \(i) {
+networks_sw <- Slurm_lapply(seq_along(networks), \(i) {
 
   # Checking out if the file already exists
   fn <- sprintf("data/graphs/%04i-swp02.rds", i)
@@ -136,7 +156,7 @@ networks_sw <- parallel::mclapply(seq_along(networks), \(i) {
   
   set.seed(random_seeds[i])
 
-  n <- networks[[i]]
+  n <- readRDS(sprintf("data/graphs/%04i-ergm.rds", i))
 
   # Number of vertices in a "network" object
   n_edges <- network::network.edgecount(n)
@@ -163,12 +183,15 @@ networks_sw <- parallel::mclapply(seq_along(networks), \(i) {
 
   NULL
     
-}, mc.cores = ncores)
+}, njobs = ncores, sbatch_opt = SB_OPTS,
+  export = c("v_attrs", "n_nodes", "random_seeds")
+  )
+  
 message("Done simulating smallworld networks p0.2")
 
 # Degree-sequence preserve rewiring of the networks
 message("Degree-sequence preserve rewiring of the networks")
-networks_r <- parallel::mclapply(seq_along(networks), \(i) {
+networks_r <- Slurm_lapply(seq_along(networks), \(i) {
 
   # Checking out if the file already exists
   fn <- sprintf("data/graphs/%04i-degseq.rds", i)
@@ -178,7 +201,7 @@ networks_r <- parallel::mclapply(seq_along(networks), \(i) {
   
   set.seed(random_seeds[i])
 
-  n <- networks[[i]]
+  n <- readRDS(sprintf("data/graphs/%04i-ergm.rds", i))
 
 
   # Number of vertices in a "network" object
@@ -201,13 +224,15 @@ networks_r <- parallel::mclapply(seq_along(networks), \(i) {
 
   NULL
 
-}, mc.cores = ncores)
+}, njobs = ncores, sbatch_opt = SB_OPTS,
+  export = c("v_attrs", "n_nodes", "random_seeds")
+  )
 message("Done degree-sequence preserve rewiring of the networks")
 
 # Erdos-Renyi networks with same density and size
 # as the original networks
 message("Simulating Erdos-Renyi networks")
-networks_er <- parallel::mclapply(seq_along(networks), \(i) {
+networks_er <- Slurm_lapply(seq_along(networks), \(i) {
 
   # Checking out if the file already exists
   fn <- sprintf("data/graphs/%04i-er.rds", i)
@@ -217,7 +242,7 @@ networks_er <- parallel::mclapply(seq_along(networks), \(i) {
   
   set.seed(random_seeds[i])
 
-  n <- networks[[i]]
+  n <- readRDS(sprintf("data/graphs/%04i-ergm.rds", i))
 
   # Number of vertices in a "network" object
   n_edges <- network::network.edgecount(n)
@@ -240,7 +265,9 @@ networks_er <- parallel::mclapply(seq_along(networks), \(i) {
 
   NULL
 
-}, mc.cores = ncores)
+}, njobs = ncores, sbatch_opt = SB_OPTS,
+  export = c("v_attrs", "n_nodes", "random_seeds")
+)
 message("Done simulating Erdos-Renyi the networks")
 
 message("Done saving the networks")
