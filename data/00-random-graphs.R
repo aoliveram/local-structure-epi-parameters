@@ -62,7 +62,7 @@ networks_sf <- parallel::mclapply(seq_along(networks), \(i) {
 
   m <- igraph::sample_pa(
     n_nodes, power = 1,
-    m = n_edges/n_nodes,
+    m = floor(n_edges/n_nodes),
     directed = FALSE
   )
 

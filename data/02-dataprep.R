@@ -34,6 +34,13 @@ if (!file.exists(fn_ergm)) {
 
     n <- networks[[i]]
 
+    ng <- gsub("graphs/", "graphs_stats/", n)
+
+    # If the file exists, load it and return it
+    if (file.exists(ng)) {
+      return(fread(ng))
+    }
+
     # Reading the network
     n <- readRDS(n)
 
@@ -43,6 +50,9 @@ if (!file.exists(fn_ergm)) {
     ) |> as.list() |> as.data.table()
 
     res[, netfile := networks[[i]]]
+
+    # Saving
+    fwrite(res, ng, compress = "auto")
 
     res
   }, mc.cores = ncores) |> rbindlist()
@@ -68,11 +78,18 @@ if (!file.exists(fn_igraph)) {
   message("Computing statistics based on igraph")
   S_igraph <- parallel::mclapply(networks, \(i) { 
 
+    ng <- gsub("graphs/", "graphs_stats/", i)
+
+    # If the file exists, load it and return it
+    if (file.exists(ng)) {
+      return(fread(ng))
+    }
+
     # Reading the network and converting it into igraph
     n <- readRDS(i)
     n <- intergraph::asIgraph(n)
     
-    data.table(
+    n <- data.table(
       netfile         = i,
       modularity      = modularity(cluster_fast_greedy(n)),
       transitivity    = transitivity(n),
@@ -85,6 +102,12 @@ if (!file.exists(fn_igraph)) {
       avg_eigenvector = mean(eigen_centrality(n)$vector, na.rm = TRUE),
       components      = components(n)$no
     )
+
+    # Saving
+    fwrite(n, ng, compress = "auto")
+
+    n
+    
   }, mc.cores = ncores) |> rbindlist()
 
   head(S_igraph)
