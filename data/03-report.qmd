@@ -117,8 +117,6 @@ summRt <- function(val) {
 
 # Pairwise comparisons with the original network
 
-
-
 Here are the variables we are interested in
 
 ```{r}
@@ -192,9 +190,9 @@ We do observe a lower dispersion in scale-free networks compared to the ERGM net
 :::
 
 
-## Model fitting
+# Model fitting
 
-### Igraph variables
+## Igraph variables
 
 ```{r}
 #| label: adjusting-igraph
@@ -238,7 +236,7 @@ simstats[, igraph_avg_closeness := scale(igraph_avg_closeness)]
 
 Variables have wild scales. We need to scale them before fitting the model. 
 
-### ERGM variables
+## ERGM variables
 
 ```{r}
 #| label: ergm-proc-ggplot
@@ -297,46 +295,230 @@ ggplot(ergm_vars_long, aes(x = nettype, y = value)) +
   )
 ```
 
+## Cross correlation between network variables
+
+```{r}
+#| label: corr-igraph
+#| echo: false
+correlations <- cor(subset(simstats, select = c(ergm_vars, igraph_vars))) 
+
+rownames(correlations) <- gsub("^[a-z]+_", "", rownames(correlations))
+colnames(correlations) <- gsub("^[a-z]+_", "", colnames(correlations))
+
+# Which are above 0.5?
+above05 <- which(abs(correlations) > 0.5, arr.ind = TRUE) |> data.table()
+
+# Putting one first
+above05[, c("row", "col") := .(pmin(row, col), pmax(row, col))]
+above05 <- unique(above05)
+
+above05 <- above05[row != col]
+above05[, var1 := rownames(correlations)[row]]
+above05[, var2 := colnames(correlations)[col]]
+above05[, value := correlations[cbind(row, col)]]
+above05[order(-abs(value))]
+
+# Final variables to include
+toinclude_final <- c(
+  "avg_degree",
+  "twopath",
+  "modularity" ,
+  "avg_betweenness"
+  )
+
+# Assessing 
+correlations[combn(toinclude_final, 2) |> t() |> print()]
+
+# Writing them as igraph
+toinclude_final <- c(
+  "igraph_avg_degree",
+  "ergm_twopath",
+  "igraph_modularity" #,
+  # "igraph_avg_betweenness"
+  )
+```
+
+# Simple association of network variables with dependent variables
+
+::: {.panel-tabset}
+
+## Peak prevalence
+
+```{r}
+#| label: peak-prev
+#| echo: false
+
+# Reshape all igraph variables to long format
+igraph_vars_long <- melt(
+  simstats[, c("nettype", igraph_vars, "peak_preval"), with = FALSE],
+  id.vars = c("nettype", "peak_preval")
+  )
+
+# Removing a handful of variables that are not interesting
+igraph_vars_long <- subset(igraph_vars_long, !variable %in% c("igraph_density", "igraph_avg_degree", "igraph_components", "igraph_diameter"))
+
+ggplot(igraph_vars_long, aes(x = value, y = peak_preval)) +
+  geom_point(aes(color = nettype)) +
+  facet_wrap(~variable, scales = "free") +
+  geom_smooth()
+
+# Same with ergm
+ergm_vars_long <- melt(
+  simstats[, c("nettype", ergm_vars, "peak_preval"), with = FALSE],
+  id.vars = c("nettype", "peak_preval")
+  )
+
+# Removing a handful of variables that are not interesting
+ergm_vars_long <- subset(ergm_vars_long, !variable %in% c("ergm_isolates", "ergm_edges", "ergm_gwdeg.fixed.0.25"))
+
+ggplot(ergm_vars_long, aes(x = value, y = peak_preval)) +
+  geom_point(aes(color = nettype)) +
+  facet_wrap(~variable, scales = "free") +
+  geom_smooth()
+
+```
+
+## Peak time
+
+```{r}
+#| label: peak-time-corrs
+#| echo: false
+#| cache: true
+
+# Reshape all igraph variables to long format
+igraph_vars_long <- melt(
+  simstats[, c("nettype", igraph_vars, "peak_time"), with = FALSE],
+  id.vars = c("nettype", "peak_time")
+  )
+
+# Removing a handful of variables that are not interesting
+igraph_vars_long <- subset(igraph_vars_long, !variable %in% c("igraph_density", "igraph_avg_degree", "igraph_components", "igraph_diameter"))
+
+# Beautifying names
+igraph_vars_long[, variable := gsub("^igraph_", "", variable)]
+igraph_vars_long[, variable := gsub("_|\\.", " ", variable)]
+
+ggplot(igraph_vars_long, aes(x = value, y = peak_time)) +
+  geom_point(aes(color = nettype)) +
+  facet_wrap(~variable, scales = "free") +
+  geom_smooth()
+
+# Same with ergm
+ergm_vars_long <- melt(
+  simstats[, c("nettype", ergm_vars, "peak_time"), with = FALSE],
+  id.vars = c("nettype", "peak_time")
+  )
+
+# Removing a handful of variables that are not interesting
+ergm_vars_long <- subset(ergm_vars_long, !variable %in% c("ergm_isolates", "ergm_edges", "ergm_gwdeg.fixed.0.25"))
+
+ggplot(ergm_vars_long, aes(x = value, y = peak_time)) +
+  geom_point(aes(color = nettype)) +
+  facet_wrap(~variable, scales = "free") +
+  geom_smooth()
+```
+
+## Repnum
+
+```{r}
+#| label: repnum-corrs
+#| echo: false
+#| cache: true
+# Reshape all igraph variables to long format
+igraph_vars_long <- melt(
+  simstats[, c("nettype", igraph_vars, "rt_0"), with = FALSE],
+  id.vars = c("nettype", "rt_0")
+  )
+
+# Removing a handful of variables that are not interesting
+igraph_vars_long <- subset(igraph_vars_long, !variable %in% c("igraph_density", "igraph_avg_degree", "igraph_components", "igraph_diameter"))
+
+# Beautifying names
+igraph_vars_long[, variable := gsub("^igraph_", "", variable)]
+igraph_vars_long[, variable := gsub("_|\\.", " ", variable)]
+
+ggplot(igraph_vars_long, aes(x = value, y = rt_0)) +
+  geom_point(aes(color = nettype)) +
+  facet_wrap(~variable, scales = "free") +
+  geom_smooth()
+
+# Same with ergm
+ergm_vars_long <- melt(
+  simstats[, c("nettype", ergm_vars, "rt_0"), with = FALSE],
+  id.vars = c("nettype", "rt_0")
+  )
+
+# Removing a handful of variables that are not interesting
+ergm_vars_long <- subset(ergm_vars_long, !variable %in% c("ergm_isolates", "ergm_edges", "ergm_gwdeg.fixed.0.25"))
+
+ggplot(ergm_vars_long, aes(x = value, y = rt_0)) +
+  geom_point(aes(color = nettype)) +
+  facet_wrap(~variable, scales = "free") +
+  geom_smooth()
+```
+
+
+:::
+
 # Terms correlations
 
 ::: {.panel-tabset}
 
-## Two-path
+## Two-path & balance
 
 ```{r}
-ggplot(simstats, aes(x = ergm_twopath)) +
-  geom_histogram() +
-  facet_wrap(~nettype) +
-  labs(
-    x = "Two-path",
-    y = "Count"
-  )
-  
+#| label: corr-twopath-balance
+#| echo: false
 
-ggplot(simstats, aes(x = ergm_balance)) +
-  geom_histogram() +
-  facet_wrap(~nettype) +
-  labs(
-    x = "Balance",
-    y = "Count"
-  )
-  
+tmp <- simstats[, .(ergm_twopath, ergm_balance, nettype)] |>
+  melt(id.vars = "nettype") 
 
-ggplot(simstats, aes(x = ergm_twopath, y = ergm_balance)) +
-  geom_point(aes(color = nettype)) +
-  scale_color_brewer(palette = "Set1") +
+# Giving the variables a more readable name
+tmp[, variable := fifelse(variable == "ergm_twopath", "Two-path", "Balance")]
+
+ggplot(tmp, aes(x = value, y = nettype)) +
+  geom_violin(aes(fill = nettype)) +
+  scale_fill_brewer(palette = "Set1") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  facet_wrap(~variable, scales = "free", ncol = 1) +
   labs(
-    x = "Two-path",
-    y = "Balance"
+    fill = "Network type",
+    x = "",
+    y = "Value"
   )
 
-simstats[, ergm_balance := fifelse(grepl("Small-", nettype), 0, ergm_balance)]
-simstats[, ergm_twopath := fifelse(grepl("Small-", nettype), 0, ergm_twopath)]
-simstats[, is_smallworld := fifelse(grepl("Small-", nettype), 1.0, 0.0)]
+# simstats[, ergm_balance := fifelse(grepl("Small-", nettype), 0, ergm_balance)]
+# simstats[, ergm_twopath := fifelse(grepl("Small-", nettype), 0, ergm_twopath)]
+# simstats[, is_smallworld := fifelse(grepl("Small-", nettype), 1.0, 0.0)]
 
 ```
 
 The two-path stats in the smallworld networks is very different from the other networks. We will include an indicator variable making the two-path term only available for non-smallworld networks.
+
+## Transitivity and modularity
+
+```{r}
+#| label: corr-transitivity-modularity
+#| echo: false
+tmp <- simstats[, .(nettype, igraph_transitivity, igraph_modularity)] |>
+  melt(id.vars = "nettype") 
+
+# Giving varnames proper names
+tmp[, variable := gsub("igraph_", "", variable)]
+tmp[, variable := gsub("_|\\.", " ", variable)]
+
+ggplot(tmp, aes(x = value, y = nettype)) +
+  geom_violin(aes(fill = nettype), alpha = .75) +
+  facet_wrap(~variable, scales = "free", nrow = 2) +
+  scale_fill_brewer(palette = "Set1") +
+  scale_x_log10() +
+  labs(
+    x = "Value (log10)",
+    y = "Count"
+  ) +
+  # Suppress the legend
+  theme(legend.position = "none")
+```
 
 :::
 
@@ -372,7 +554,7 @@ depvars <- c(
 #| echo: false
 #| label: models-fe
 #| output: asis
-baseline <- ~ I(factor(nettype)) + is_smallworld 
+baseline <- ~ I(factor(nettype)) 
 model_peak_time <- update(baseline, paste(depvars[1], "~."))
 model_peak_preval <- update(baseline, paste(depvars[2], "~."))
 model_rt <- update(baseline, paste(depvars[3], "~."))
@@ -404,9 +586,9 @@ texreg::knitreg(
 #| echo: false
 #| output: asis
 #| label: models-simple
-terms2add <- "+ ergm_triangle + log(igraph_density) + ergm_twopath + igraph_transitivity"
+terms2add <- paste("+", paste(toinclude_final, collapse = " + "))
 
-baseline <- ~ I(factor(nettype)) + is_smallworld 
+baseline <- ~ I(factor(nettype)) 
 model_peak_time <- update(baseline, paste(depvars[1], "~. + ", terms2add))
 model_peak_preval <- update(baseline, paste(depvars[2], "~.", terms2add))
 model_rt <- update(baseline, paste(depvars[3], "~.", terms2add))
@@ -417,10 +599,6 @@ model_peak_preval  <- glm(model_peak_preval, data = simstats)
 model_peak_time    <- glm(model_peak_time, data = simstats)
 model_rt           <- glm.nb(model_rt, data = simstats)
 model_dispersion   <- glm(model_dispersion, data = simstats[is.finite(dispersion)])
-
-texreg::knitreg(
-  model_rt, single.row = TRUE
-)
 
 texreg::knitreg(
   list(
@@ -445,10 +623,15 @@ depvars <- c(
   "peak_time", "peak_preval", "rt_0", "dispersion", "final_preval")
 
 # Removing some params
-vars <- setdiff(vars, c("ergm_isolates", "igraph_avg_closeness", "igraph_avg_path_length", "ergm_nodematch.gender", "ergm_nodematch.grade", "ergm_edges", "igraph_density", "igraph_avg_degree"))
+vars <- setdiff(vars, c(
+  "ergm_isolates", "igraph_avg_closeness", "igraph_avg_path_length",
+  "ergm_nodematch.gender", "ergm_nodematch.grade", "ergm_edges",
+  "igraph_density", "igraph_avg_degree", "igraph_transitivity",
+  "ergm_balance")
+  )
 
 baseline <- paste(
-  "~ I(factor(nettype)) + is_smallworld + log(igraph_density) + ",
+  "~ I(factor(nettype)) + ",
   paste(vars, collapse = " + ")
   ) |>
   as.formula()
@@ -463,10 +646,17 @@ model_final_preval <- update(baseline, paste(depvars[5], "~."))
 ```{r}
 #| echo: false
 # Run the models
-model_peak_preval  <- glm(model_peak_preval, data = simstats)
-model_peak_time    <- glm(model_peak_time, data = simstats)
-model_rt           <- glm.nb(model_rt, data = simstats)
-model_dispersion   <- glm(model_dispersion, data = simstats[is.finite(dispersion)])
+
+# Excluding rows where nettype matches Small-world
+# (because the model doesn't converge)
+simstats_tmp <- simstats[!grepl("Small-world", nettype),]
+
+
+
+model_peak_preval  <- glm(model_peak_preval, data = simstats_tmp)
+model_peak_time    <- glm(model_peak_time, data = simstats_tmp)
+model_rt           <- glm.nb(model_rt, data = simstats_tmp)
+model_dispersion   <- glm(model_dispersion, data = simstats_tmp[is.finite(dispersion)])
 
 ```
 
@@ -486,4 +676,74 @@ texreg::knitreg(
 
 :::
 
+## Peak time only
+
+```{r}
+#| label: regress-peaktime
+#| echo: false
+#| output: asis
+#| cache: true
+library(lmtest)
+model_peak_time0 <- glm(peak_time ~ I(factor(nettype)), data = simstats)
+model_peak_time1 <- glm(peak_time ~ I(factor(nettype)) + igraph_avg_degree, data = simstats)
+# model_peak_time2 <- glm(peak_time ~ I(factor(nettype)) + igraph_avg_degree + igraph_modularity, data = simstats)
+# model_peak_time3 <- glm(peak_time ~ I(factor(nettype)) + igraph_avg_degree + ergm_balance, data = simstats)
+
+# model_peak_time4 <- glm(peak_time ~ I(factor(nettype)) + ergm_balance + ergm_twopath, data = simstats)
+
+model_peak_time5 <- glm(peak_time ~ I(factor(nettype)) + ergm_twopath, data = simstats)
+model_peak_time6 <- glm(peak_time ~ I(factor(nettype)) + ergm_twopath + ergm_triangle, data = simstats)
+
+knitreg(mget(ls(pattern = "model_peak_time[0-9]")), single.row = TRUE)
+```
+
+## Peak prevalence only
+
+```{r}
+#| label: regress-peakpreval
+#| echo: false
+#| output: asis
+#| cache: true
+library(lmtest)
+model_peak_preval0 <- glm(peak_preval ~ I(factor(nettype)), data = simstats)
+model_peak_preval1 <- glm(peak_preval ~ I(factor(nettype)) + igraph_avg_degree, data = simstats)
+model_peak_preval2 <- glm(peak_preval ~ I(factor(nettype)) + igraph_avg_degree + igraph_modularity, data = simstats)
+model_peak_preval3 <- glm(peak_preval ~ I(factor(nettype)) + igraph_avg_degree + ergm_balance, data = simstats)
+model_peak_preval4 <- glm(peak_preval ~ I(factor(nettype)) + igraph_avg_degree + ergm_twopath, data = simstats)
+model_peak_preval5 <- glm(peak_preval ~ I(factor(nettype)) + igraph_avg_degree + ergm_twopath + igraph_transitivity, data = simstats)
+
+model_peak_preval6 <- glm(peak_preval ~ I(factor(nettype)) + igraph_avg_degree + ergm_twopath + igraph_avg_path_length, data = simstats)
+
+
+knitreg(mget(ls(pattern = "model_peak_preval[0-9]")), single.row = TRUE)
+```
+
+
+## Reproductive number only
+
+```{r}
+#| label: regress-repnum
+#| echo: false
+#| output: asis
+#| cache: true
+library(lmtest)
+model_rt0 <- glm.nb(rt_0 ~ I(factor(nettype)), data = simstats)
+model_rt1 <- glm.nb(rt_0 ~ I(factor(nettype)) + igraph_avg_degree, data = simstats)
+model_rt2 <- glm.nb(rt_0 ~ I(factor(nettype)) + igraph_avg_degree + igraph_modularity, data = simstats)
+model_rt3 <- glm.nb(rt_0 ~ I(factor(nettype)) + igraph_modularity, data = simstats)
+model_rt4 <- glm.nb(rt_0 ~ I(factor(nettype)) + ergm_balance, data = simstats)
+lrtest(model_rt1, model_rt4)
+model_rt5 <- glm.nb(rt_0 ~ I(factor(nettype)) + ergm_balance + ergm_twopath, data = simstats)
+
+lrtest(model_rt3, model_rt5)
+
+knitreg(
+  mget(x = ls(pattern = "model_rt[0-9]")),
+  single.row = TRUE
+  )
+
+
+```
+
 :::
+
