@@ -36,8 +36,8 @@ vallabs <- c(
 # Mapping the nettype to a more readable name
 simstats[, nettype := factor(
   nettype,
-  levels = c("ergm", "sf", "sw", "degseq", "er"),
-  labels = c("ERGM", "Scale-free", "Small-world", "Degree-sequence", "Erdos-Renyi")
+  levels = c("ergm", "sf", "swp01", "swp02", "degseq", "er"),
+  labels = c("ERGM", "Scale-free", "Small-world (p=0.1)", "Small-world (p=0.2)", "Degree-sequence", "Erdos-Renyi")
   )]
 
 summRt <- function(val) {
@@ -198,7 +198,6 @@ We do observe a lower dispersion in scale-free networks compared to the ERGM net
 
 ```{r}
 #| label: adjusting-igraph
-#| cache: true
 #| echo: false
 # Histogram plot of all variables in igraph_vars combined
 igraph_vars <- grep("^igraph", names(simstats), value = TRUE)
@@ -243,7 +242,6 @@ Variables have wild scales. We need to scale them before fitting the model.
 
 ```{r}
 #| label: ergm-proc-ggplot
-#| cache: true
 #| echo: false
 # Same procedure for the ergm_vars
 ergm_vars <- grep("^ergm", names(simstats), value = TRUE)
@@ -270,7 +268,6 @@ ggplot(ergm_vars_long, aes(x = nettype, y = value)) +
 
 ```{r}
 #| label: ergm-proc
-#| cache: true
 #| echo: false
 # Scaling the variables ergm_edges, ergm_nodematch* and ergm_triangle by log
 toscale <- setdiff(ergm_vars, "ergm_isolates")
@@ -299,6 +296,49 @@ ggplot(ergm_vars_long, aes(x = nettype, y = value)) +
     y = "Value"
   )
 ```
+
+# Terms correlations
+
+::: {.panel-tabset}
+
+## Two-path
+
+```{r}
+ggplot(simstats, aes(x = ergm_twopath)) +
+  geom_histogram() +
+  facet_wrap(~nettype) +
+  labs(
+    x = "Two-path",
+    y = "Count"
+  )
+  
+
+ggplot(simstats, aes(x = ergm_balance)) +
+  geom_histogram() +
+  facet_wrap(~nettype) +
+  labs(
+    x = "Balance",
+    y = "Count"
+  )
+  
+
+ggplot(simstats, aes(x = ergm_twopath, y = ergm_balance)) +
+  geom_point(aes(color = nettype)) +
+  scale_color_brewer(palette = "Set1") +
+  labs(
+    x = "Two-path",
+    y = "Balance"
+  )
+
+simstats[, ergm_balance := fifelse(grepl("Small-", nettype), 0, ergm_balance)]
+simstats[, ergm_twopath := fifelse(grepl("Small-", nettype), 0, ergm_twopath)]
+simstats[, is_smallworld := fifelse(grepl("Small-", nettype), 1.0, 0.0)]
+
+```
+
+The two-path stats in the smallworld networks is very different from the other networks. We will include an indicator variable making the two-path term only available for non-smallworld networks.
+
+:::
 
 # Models
 
@@ -332,7 +372,7 @@ depvars <- c(
 #| echo: false
 #| label: models-fe
 #| output: asis
-baseline <- ~ I(factor(nettype))
+baseline <- ~ I(factor(nettype)) + is_smallworld 
 model_peak_time <- update(baseline, paste(depvars[1], "~."))
 model_peak_preval <- update(baseline, paste(depvars[2], "~."))
 model_rt <- update(baseline, paste(depvars[3], "~."))
@@ -366,7 +406,7 @@ texreg::knitreg(
 #| label: models-simple
 terms2add <- "+ ergm_triangle + log(igraph_density) + ergm_twopath + igraph_transitivity"
 
-baseline <- ~ I(factor(nettype))
+baseline <- ~ I(factor(nettype)) + is_smallworld 
 model_peak_time <- update(baseline, paste(depvars[1], "~. + ", terms2add))
 model_peak_preval <- update(baseline, paste(depvars[2], "~.", terms2add))
 model_rt <- update(baseline, paste(depvars[3], "~.", terms2add))
@@ -405,10 +445,10 @@ depvars <- c(
   "peak_time", "peak_preval", "rt_0", "dispersion", "final_preval")
 
 # Removing some params
-vars <- setdiff(vars, c("ergm_isolates", "igraph_avg_closeness", "igraph_avg_path_length", "ergm_nodematch.gender", "ergm_nodematch.grade"))
+vars <- setdiff(vars, c("ergm_isolates", "igraph_avg_closeness", "igraph_avg_path_length", "ergm_nodematch.gender", "ergm_nodematch.grade", "ergm_edges", "igraph_density", "igraph_avg_degree"))
 
 baseline <- paste(
-  "~ I(factor(nettype)) + ",
+  "~ I(factor(nettype)) + is_smallworld + log(igraph_density) + ",
   paste(vars, collapse = " + ")
   ) |>
   as.formula()
@@ -428,13 +468,13 @@ model_peak_time    <- glm(model_peak_time, data = simstats)
 model_rt           <- glm.nb(model_rt, data = simstats)
 model_dispersion   <- glm(model_dispersion, data = simstats[is.finite(dispersion)])
 
-hist(simstats[, igraph_avg_path_length])
 ```
 
 ::: {style="font-size:70%"}
 
 ```{r}
 #| output: asis
+#| echo: false
 texreg::knitreg(
   list(
     peak_preval = model_peak_preval,
