@@ -1,26 +1,32 @@
 #!/bin/sh
 #SBATCH --account=vegayon-np
 #SBATCH --partition=vegayon-shared-np
-#SBATCH --ntasks=31
 #SBATCH --mem=128GB
 #SBATCH --job-name=02-dataprep
 #SBATCH --time=24:00:00
 #SBATCH --mail-type=all
 #SBATCH --mail-user=george.vegayon@utah.edu
 
+library(network, lib.loc = "/uufs/chpc.utah.edu/common/home/vegayon-group1/george/R/x86_64-pc-linux-gnu-library/4.2/")
+library(ergm, lib.loc = "/uufs/chpc.utah.edu/common/home/vegayon-group1/george/R/x86_64-pc-linux-gnu-library/4.2/")
 library(igraph)
-library(network)
-# library(netplot)
+library(slurmR)
 library(intergraph)
-library(ergm)
 library(data.table)
 
 ncores <- 30
 
+# Set the slurmR options
+SB_OPTS <- list(
+  account    = "vegayon-np",
+  partition  = "vegayon-shared-np",
+  mem        = "8G"
+  )
+
 # Read the Simulated data rds file from data/
 message("Loading the networks files")
 networks <- list.files(
-  "data/graphs", pattern = "[0-9]+-(ergm|sf|sw|degseq|er)\\.rds$",full.names = TRUE) 
+  "data/graphs", pattern = "[0-9]+-(ergm|sf|swp[0-9]{2}|degseq|er)\\.rds$",full.names = TRUE) 
 
 # File name for each type
 fn_ergm   <- "data/02-dataprep-ergm.csv.gz"
@@ -30,9 +36,17 @@ fn_sim    <- "data/02-dataprep-sim.csv.gz"
 # Computing statistics using ERGM
 if (!file.exists(fn_ergm)) {
   message("Computing statistics using ERGM")
-  S_ergm <- parallel::mclapply(seq_along(networks), \(i) {
+  S_ergm <- Slurm_lapply(seq_along(networks), \(i) {
 
     n <- networks[[i]]
+
+    ng <- gsub("graphs/", "graphs_stats/", n)
+    ng <- gsub(".rds$", "-ergm.csv.gz", ng)
+
+    # If the file exists, load it and return it
+    if (file.exists(ng)) {
+      return(fread(ng))
+    }
 
     # Reading the network
     n <- readRDS(n)
@@ -44,8 +58,11 @@ if (!file.exists(fn_ergm)) {
 
     res[, netfile := networks[[i]]]
 
+    # Saving
+    fwrite(res, ng, compress = "auto")
+
     res
-  }, mc.cores = ncores) |> rbindlist()
+  }, njobs = ncores, sbatch_opt =  SB_OPTS, export = "networks", job_name = "02-dataprep-ergm") |> rbindlist()
 
   # Pre-appending `ergm_` to all column names, except netfile
   setnames(S_ergm, new = paste0("ergm_", names(S_ergm)))
@@ -66,13 +83,21 @@ head(S_ergm)
 if (!file.exists(fn_igraph)) {
 
   message("Computing statistics based on igraph")
-  S_igraph <- parallel::mclapply(networks, \(i) { 
+  S_igraph <- Slurm_lapply(networks, \(i) { 
+
+    ng <- gsub("graphs/", "graphs_stats/", i)
+    ng <- gsub(".rds$", "-igraph.csv.gz", ng)
+
+    # If the file exists, load it and return it
+    if (file.exists(ng)) {
+      return(fread(ng))
+    }
 
     # Reading the network and converting it into igraph
     n <- readRDS(i)
     n <- intergraph::asIgraph(n)
     
-    data.table(
+    n <- data.table(
       netfile         = i,
       modularity      = modularity(cluster_fast_greedy(n)),
       transitivity    = transitivity(n),
@@ -85,7 +110,13 @@ if (!file.exists(fn_igraph)) {
       avg_eigenvector = mean(eigen_centrality(n)$vector, na.rm = TRUE),
       components      = components(n)$no
     )
-  }, mc.cores = ncores) |> rbindlist()
+
+    # Saving
+    fwrite(n, ng, compress = "auto")
+
+    n
+    
+  }, njobs = ncores, sbatch_opt =  SB_OPTS, export = "networks", job_name = "02-dataprep-igraph") |> rbindlist()
 
   head(S_igraph)
 
@@ -103,8 +134,8 @@ if (!file.exists(fn_igraph)) {
 # Combining the datasets
 S <- merge(S_igraph, S_ergm, by = "netfile", all = TRUE)
 
-S[, nettype := gsub(".+-([a-z]+)\\.rds", "\\1", netfile)]
-S[, netid   := gsub(".+/([0-9]+-[a-z]+)\\.rds", "\\1", netfile)]
+S[, nettype := gsub(".+-([a-z0-9]+)\\.rds", "\\1", netfile)]
+S[, netid   := gsub(".+/([0-9]+-[a-z0-9]+)\\.rds", "\\1", netfile)]
 
 
 # Reading simulation results ---------------------------------------------------
@@ -112,9 +143,9 @@ S[, netid   := gsub(".+/([0-9]+-[a-z]+)\\.rds", "\\1", netfile)]
 if (!file.exists(fn_sim)) {
 
   message("Processing the simulation results")
-  simfiles <- list.files("data/graphs", pattern = "-sim-[0-9]+\\.rds$", full.names = TRUE)
+  simfiles <- list.files("data/sims", pattern = "-sim-[0-9]+\\.rds$", full.names = TRUE)
 
-  simres <- parallel::mclapply(simfiles, \(fn) {
+  simres <- Slurm_lapply(simfiles, \(fn) {
 
     x <- readRDS(fn)
     
@@ -179,7 +210,7 @@ if (!file.exists(fn_sim)) {
 
     res
 
-  }, mc.cores = ncores) |> rbindlist()
+  }, njobs = ncores, sbatch_opt =  SB_OPTS, export = "networks", job_name = "02-dataprep-sims") |> rbindlist()
 
   fwrite(simres, fn_sim, compress = "auto")
 
@@ -192,7 +223,7 @@ if (!file.exists(fn_sim)) {
   
 }
 
-simres[, netid := gsub(".+/([0-9]+-[a-z]+)-sim.+", "\\1", simfile)]
+simres[, netid := gsub(".+/([0-9]+-[a-z0-9]+)-sim.+", "\\1", simfile)]
 
 print(head(S))
 

@@ -78,6 +78,12 @@ res <- Slurm_lapply(params, FUN = \(param) {
     x = param$netfile
     )
 
+  fn <- gsub(
+    pattern = "data/graphs/",
+    replacement = "data/sims/",
+    x = fn
+  )
+
   if (file.exists(fn)) {
     message("File ", fn, " already exists, skipping...")
     return(NULL)
@@ -161,7 +167,7 @@ res <- Slurm_lapply(params, FUN = \(param) {
 }, njobs = Njobs, sbatch_opt = SB_OPTS, job_name = "abm-simulation-lapply",
 plan = "collect")
 
-# print(res)
+message("Saving the results under data/")
 
 # Saving the results under data/
 saveRDS(

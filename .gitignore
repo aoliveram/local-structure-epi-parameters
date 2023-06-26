@@ -2,4 +2,7 @@
 slides_files
 *.pdf
 *.rds
-
+*.gz
+*.out
+*.sh
+.Rhistory
