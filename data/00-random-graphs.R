@@ -101,7 +101,7 @@ networks_sw <- parallel::mclapply(seq_along(networks), \(i) {
   m <- igraph::sample_smallworld(
     n_nodes,
     dim = 1,
-    nei = ceiling(mean(sna::degree(n, gmode="graph", cmode = "indegree"))),
+    nei = ceiling(mean(sna::degree(n, gmode="graph", cmode = "indegree")))/2,
     p   = 0.1
     )
 

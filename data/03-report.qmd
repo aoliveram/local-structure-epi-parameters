@@ -183,14 +183,6 @@ summRt("dispersion")
 
 We do observe a lower dispersion in scale-free networks compared to the ERGM networks.
 
-## Final prevalence
-
-```{r}
-#| label: final-preval
-#| echo: false
-#| results: "asis"
-summRt("final_preval")
-```
 
 :::
 
@@ -209,10 +201,29 @@ igraph_vars <- grep("^igraph", names(simstats), value = TRUE)
 # Reshape long all igraph_vars 
 igraph_vars_long <- melt(simstats[, c("nettype", igraph_vars), with = FALSE], id.vars = "nettype")
 
+# Variables to exclude
+excl_vars <- c("igraph_transitivity", "igraph_diameter", "igraph_avg_degree", "igraph_components")
+
+igraph_vars_long <- igraph_vars_long[!variable %in% excl_vars]
+igraph_vars_long[, variable := gsub("^igraph_", "", variable)]
+igraph_vars_long[, variable := gsub("_", " ", variable)]
+
 # Plot the histogram by variable
-ggplot(igraph_vars_long, aes(x = value)) +
-  geom_histogram(aes(colour = nettype)) +
-  facet_wrap(~variable, scales = "free") 
+ggplot(
+  igraph_vars_long,
+  aes(y = value, x = nettype) 
+  ) +
+  # Picking a colorblind friendly palette
+  scale_fill_brewer(palette = "Set1") +
+  # Rotating x labels 45 degrees
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  geom_violin(aes(fill = nettype)) +
+  facet_wrap(~variable, scales = "free") +
+  labs(
+    fill = "Network type",
+    x = "",
+    y = "Value"
+  )
 
 # simstats[, igraph_avg_closeness/sd(igraph_avg_closeness, na.rm = TRUE)] |> hist()
 

@@ -1,11 +1,11 @@
 library(epiworldR)
 library(data.table)
 
-r_rate   <- 1/3
+r_rate   <- 1/5
 c_rate   <- 5 # Average observed
-nsims    <- 100
+nsims    <- 500
 nthreads <- 20
-n        <- 5e4
+n        <- 5e3
 
 rts <- c(.75, 1.5, 2, 2.5, 3)
 res <- NULL
