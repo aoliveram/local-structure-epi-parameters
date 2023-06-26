@@ -152,6 +152,7 @@ summRt("peak_time")
 #| label: peak-preval
 #| echo: false
 #| results: "asis"
+#| cache: true
 summRt("peak_preval")
 ```
 
@@ -678,6 +679,8 @@ texreg::knitreg(
 
 ## Peak time only
 
+::: {style="font-size:70%"}
+
 ```{r}
 #| label: regress-peaktime
 #| echo: false
@@ -697,7 +700,11 @@ model_peak_time6 <- glm(peak_time ~ I(factor(nettype)) + ergm_twopath + ergm_tri
 knitreg(mget(ls(pattern = "model_peak_time[0-9]")), single.row = TRUE)
 ```
 
+:::
+
 ## Peak prevalence only
+
+::: {style="font-size:70%"}
 
 ```{r}
 #| label: regress-peakpreval
@@ -707,19 +714,23 @@ knitreg(mget(ls(pattern = "model_peak_time[0-9]")), single.row = TRUE)
 library(lmtest)
 model_peak_preval0 <- glm(peak_preval ~ I(factor(nettype)), data = simstats)
 model_peak_preval1 <- glm(peak_preval ~ I(factor(nettype)) + igraph_avg_degree, data = simstats)
-model_peak_preval2 <- glm(peak_preval ~ I(factor(nettype)) + igraph_avg_degree + igraph_modularity, data = simstats)
-model_peak_preval3 <- glm(peak_preval ~ I(factor(nettype)) + igraph_avg_degree + ergm_balance, data = simstats)
+# model_peak_preval2 <- glm(peak_preval ~ I(factor(nettype)) + igraph_avg_degree + igraph_modularity, data = simstats)
+# model_peak_preval3 <- glm(peak_preval ~ I(factor(nettype)) + igraph_avg_degree + ergm_balance, data = simstats)
 model_peak_preval4 <- glm(peak_preval ~ I(factor(nettype)) + igraph_avg_degree + ergm_twopath, data = simstats)
 model_peak_preval5 <- glm(peak_preval ~ I(factor(nettype)) + igraph_avg_degree + ergm_twopath + igraph_transitivity, data = simstats)
 
-model_peak_preval6 <- glm(peak_preval ~ I(factor(nettype)) + igraph_avg_degree + ergm_twopath + igraph_avg_path_length, data = simstats)
+# model_peak_preval6 <- glm(peak_preval ~ I(factor(nettype)) + igraph_avg_degree + ergm_twopath + igraph_avg_path_length, data = simstats)
 
 
 knitreg(mget(ls(pattern = "model_peak_preval[0-9]")), single.row = TRUE)
 ```
 
+:::
 
-## Reproductive number only
+
+## Reproductive number only 
+
+::: {style="font-size:70%"}
 
 ```{r}
 #| label: regress-repnum
@@ -732,10 +743,10 @@ model_rt1 <- glm.nb(rt_0 ~ I(factor(nettype)) + igraph_avg_degree, data = simsta
 model_rt2 <- glm.nb(rt_0 ~ I(factor(nettype)) + igraph_avg_degree + igraph_modularity, data = simstats)
 model_rt3 <- glm.nb(rt_0 ~ I(factor(nettype)) + igraph_modularity, data = simstats)
 model_rt4 <- glm.nb(rt_0 ~ I(factor(nettype)) + ergm_balance, data = simstats)
-lrtest(model_rt1, model_rt4)
+# lrtest(model_rt1, model_rt4)
 model_rt5 <- glm.nb(rt_0 ~ I(factor(nettype)) + ergm_balance + ergm_twopath, data = simstats)
 
-lrtest(model_rt3, model_rt5)
+# lrtest(model_rt3, model_rt5)
 
 knitreg(
   mget(x = ls(pattern = "model_rt[0-9]")),
@@ -744,6 +755,8 @@ knitreg(
 
 
 ```
+
+:::
 
 :::
 
