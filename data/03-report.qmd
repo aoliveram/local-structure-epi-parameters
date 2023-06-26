@@ -16,6 +16,9 @@ simstats <- fread("data/02-dataprep-network-stats.csv.gz")
 # Removing cases with 0 transmission
 simstats <- simstats[peak_preval > 1]
 
+# # Removing Small-world b/c networks have double density
+# simstats <- simstats[nettype != "sw"]
+
 # Adjust factor (approx)
 adj <- nrow(simstats) / 20000
 
@@ -76,6 +79,8 @@ summRt <- function(val) {
   ans <- ggplot(dat, aes(x = dat[[val]])) +
     theme_bw() +
     geom_histogram(aes(fill = is_ergm), alpha = .7) +
+    # Color blind friendly 2-color palette
+    scale_fill_brewer(palette = "Set1") +
     facet_wrap(~nettype, ncol = 2) +
     labs(
       x = vallabs[val],
@@ -245,9 +250,22 @@ ergm_vars <- grep("^ergm", names(simstats), value = TRUE)
 
 ergm_vars_long <- melt(simstats[, c("nettype", ergm_vars), with = FALSE], id.vars = "nettype")
 
-ggplot(ergm_vars_long, aes(x = value)) +
-  geom_histogram() +
-  facet_wrap(~variable, scales = "free") 
+excl_vars <- c("ergm_isolates", "ergm_gwdeg.fixed.0.25")
+
+ergm_vars_long <- ergm_vars_long[!variable %in% excl_vars]
+ergm_vars_long[, variable := gsub("^ergm_", "", variable)]
+ergm_vars_long[, variable := gsub("_|\\.", " ", variable)]
+
+ggplot(ergm_vars_long, aes(x = nettype, y = value)) +
+  geom_violin(aes(fill = nettype)) +
+  scale_fill_brewer(palette = "Set1") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  facet_wrap(~variable, scales = "free") +
+  labs(
+    fill = "Network type",
+    x = "",
+    y = "Value"
+  )
 ```
 
 ```{r}
@@ -264,9 +282,22 @@ ergm_vars_long <- melt(
   id.vars = "nettype"
   )
 
-ggplot(ergm_vars_long, aes(x = value)) +
-  geom_histogram(aes(colour = nettype)) +
-  facet_wrap(~variable, scales = "free") 
+excl_vars <- c("ergm_isolates", "ergm_edges", "ergm_gwdeg.fixed.0.25")
+
+ergm_vars_long <- ergm_vars_long[!variable %in% excl_vars]
+ergm_vars_long[, variable := gsub("^ergm_", "", variable)]
+ergm_vars_long[, variable := gsub("_|\\.", " ", variable)]
+
+ggplot(ergm_vars_long, aes(x = nettype, y = value)) +
+  geom_violin(aes(fill = nettype)) +
+  scale_fill_brewer(palette = "Set1") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  facet_wrap(~variable, scales = "free") +
+  labs(
+    fill = "Network type",
+    x = "",
+    y = "Value"
+  )
 ```
 
 # Models
@@ -277,6 +308,7 @@ ggplot(ergm_vars_long, aes(x = value)) +
 #| label: models
 #| echo: false
 library(texreg)
+library(MASS)
 
 vars <- c(ergm_vars, igraph_vars)
 
@@ -310,17 +342,15 @@ model_final_preval <- update(baseline, paste(depvars[5], "~."))
 # Run the models
 model_peak_preval  <- glm(model_peak_preval, data = simstats)
 model_peak_time    <- glm(model_peak_time, data = simstats)
-model_rt           <- glm(model_rt, data = simstats)
+model_rt           <- glm.nb(model_rt, data = simstats)
 model_dispersion   <- glm(model_dispersion, data = simstats[is.finite(dispersion)])
-model_final_preval <- glm(model_final_preval, data = simstats, family = poisson())
 
 texreg::knitreg(
   list(
     peak_preval = model_peak_preval,
     peak_time = model_peak_time,
     rt = model_rt,
-    dispersion = model_dispersion,
-    final_preval = model_final_preval
+    dispersion = model_dispersion
   ), single.row = TRUE)
 ```
 
@@ -334,29 +364,30 @@ texreg::knitreg(
 #| echo: false
 #| output: asis
 #| label: models-simple
-terms2add <- "+ ergm_triangle + igraph_density + igraph_avg_path_length + ergm_nodematch.grade"
+terms2add <- "+ ergm_triangle + log(igraph_density) + ergm_twopath + igraph_transitivity"
 
 baseline <- ~ I(factor(nettype))
 model_peak_time <- update(baseline, paste(depvars[1], "~. + ", terms2add))
 model_peak_preval <- update(baseline, paste(depvars[2], "~.", terms2add))
 model_rt <- update(baseline, paste(depvars[3], "~.", terms2add))
 model_dispersion <- update(baseline, paste0("I(log(", depvars[4], "))~.", terms2add))
-model_final_preval <- update(baseline, paste(depvars[5], "~.", terms2add))
 
 # Run the models
 model_peak_preval  <- glm(model_peak_preval, data = simstats)
 model_peak_time    <- glm(model_peak_time, data = simstats)
-model_rt           <- glm(model_rt, data = simstats)
+model_rt           <- glm.nb(model_rt, data = simstats)
 model_dispersion   <- glm(model_dispersion, data = simstats[is.finite(dispersion)])
-model_final_preval <- glm(model_final_preval, data = simstats, family = poisson())
+
+texreg::knitreg(
+  model_rt, single.row = TRUE
+)
 
 texreg::knitreg(
   list(
     peak_preval = model_peak_preval,
     peak_time = model_peak_time,
     rt = model_rt,
-    dispersion = model_dispersion,
-    final_preval = model_final_preval
+    dispersion = model_dispersion
   ), single.row = TRUE)
 ```
 
@@ -365,14 +396,21 @@ texreg::knitreg(
 ## Full models
 
 ```{r}
-
+#| echo: false
+#| label: models-full
 # Using the update function, run a series of models
 # replacing the lhs of the formula with rt, peak_time, and final_preval
 
 depvars <- c(
   "peak_time", "peak_preval", "rt_0", "dispersion", "final_preval")
 
-baseline <- paste("~ I(factor(nettype)) + ", paste(vars, collapse = " + ")) |>
+# Removing some params
+vars <- setdiff(vars, c("ergm_isolates", "igraph_avg_closeness", "igraph_avg_path_length", "ergm_nodematch.gender", "ergm_nodematch.grade"))
+
+baseline <- paste(
+  "~ I(factor(nettype)) + ",
+  paste(vars, collapse = " + ")
+  ) |>
   as.formula()
 
 model_peak_time <- update(baseline, paste(depvars[1], "~."))
@@ -387,9 +425,10 @@ model_final_preval <- update(baseline, paste(depvars[5], "~."))
 # Run the models
 model_peak_preval  <- glm(model_peak_preval, data = simstats)
 model_peak_time    <- glm(model_peak_time, data = simstats)
-model_rt           <- glm(model_rt, data = simstats)
+model_rt           <- glm.nb(model_rt, data = simstats)
 model_dispersion   <- glm(model_dispersion, data = simstats[is.finite(dispersion)])
-model_final_preval <- glm(model_final_preval, data = simstats, family = poisson())
+
+hist(simstats[, igraph_avg_path_length])
 ```
 
 ::: {style="font-size:70%"}
@@ -401,8 +440,7 @@ texreg::knitreg(
     peak_preval = model_peak_preval,
     peak_time = model_peak_time,
     rt = model_rt,
-    dispersion = model_dispersion,
-    final_preval = model_final_preval
+    dispersion = model_dispersion
   ), single.row = TRUE)
 ```
 
