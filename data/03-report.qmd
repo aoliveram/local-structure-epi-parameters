@@ -27,6 +27,7 @@ vallabs <- c(
   peak_time = "Peak time",
   peak_preval = "Peak prevalence",
   rt = "Reproductive number",
+  rt_0 = "Reproductive number",
   rt_mean = "Average reproductive number",
   dispersion = "Dispersion",
   gentime = "Generation time",
@@ -94,6 +95,15 @@ summRt <- function(val) {
       fill = "ERGM"
     )
 
+  # Saving the plot in 8 x 8 in in figures
+  ggsave(
+    filename = sprintf("figures/03-report-dist-%s.png", val),
+    plot = ans,
+    width = 8,
+    height = 4,
+    units = "in"
+    )
+
   ans
 
 }
@@ -131,6 +141,53 @@ ergmvars <- grep("^ergm", names(simstats), value = TRUE)
 igraphvars <- grep("^igraph", names(simstats), value = TRUE)
 ```
 
+Summarizing the results in a table that has the mean, sd, and 95% CI for each variable in `depvars` by `nettype`
+
+```{r}
+#| echo: false
+#| label: pairwise
+#| results: "asis"
+#| cache: true
+fancytab <- simstats[, lapply(.SD, function(x) {
+    c(
+      mean(x, na.rm = TRUE),
+      sd(x, na.rm = TRUE),
+      quantile(x, probs = c(.025, .975), na.rm = TRUE)
+    )
+  }), .SDcols = c("peak_time", "peak_preval", "rt_0", "gentime"), by = "nettype"] 
+
+
+fancytab <- melt(fancytab, id.vars = "nettype") 
+fancytab[, tag := c("mean", "sd", "2.5%", "97.5%"),
+  by = .(nettype, variable)]
+
+# Reshaping
+fancytab <- dcast(fancytab, nettype + variable ~ tag, value.var = "value") 
+
+# Ordering the columns
+fancytab <- fancytab[, .SD, .SDcols = c("nettype", "variable", "mean", "sd", "2.5%", "97.5%")]
+
+# Fancy labels for the variables
+fancytab[, variable := factor(variable, levels = names(vallabs), labels = unname(vallabs))]
+
+setorder(fancytab, variable, nettype)
+
+ggplot(fancytab, aes(x = mean)) +
+  geom_point(aes(y = nettype)) +
+  geom_errorbarh(aes(y=nettype, xmin = `2.5%`, xmax = `97.5%`)) +
+  facet_wrap(~variable, ncol = 2, scales = "free")
+
+# Saving the figure
+ggsave(
+  filename = "figures/03-report-pairwise.png",
+  width = 8,
+  height = 4,
+  units = "in"
+  )
+
+```
+
+
 # Differences between network types
 
 ::: {.panel-tabset}
@@ -152,7 +209,6 @@ summRt("peak_time")
 #| label: peak-preval
 #| echo: false
 #| results: "asis"
-#| cache: true
 summRt("peak_preval")
 ```
 
@@ -228,6 +284,14 @@ ggplot(
     y = "Value"
   )
 
+# Saving the figure in 8 x 8 in
+ggsave(
+  "figures/03-report-igraph-vars.png",
+  width = 8,
+  height = 6,
+  units = "in"
+  )
+
 # simstats[, igraph_avg_closeness/sd(igraph_avg_closeness, na.rm = TRUE)] |> hist()
 
 # Transforming to divide by the standard deviation
@@ -262,6 +326,14 @@ ggplot(ergm_vars_long, aes(x = nettype, y = value)) +
     fill = "Network type",
     x = "",
     y = "Value"
+  )
+
+# Saving in 8 x 8 in
+ggsave(
+  "figures/03-report-ergm-vars.png",
+  width = 8,
+  height = 6,
+  units = "in"
   )
 ```
 
@@ -360,6 +432,7 @@ igraph_vars_long <- subset(igraph_vars_long, !variable %in% c("igraph_density", 
 
 ggplot(igraph_vars_long, aes(x = value, y = peak_preval)) +
   geom_point(aes(color = nettype)) +
+  scale_color_brewer(palette = "Set1") +
   facet_wrap(~variable, scales = "free") +
   geom_smooth()
 
@@ -374,6 +447,7 @@ ergm_vars_long <- subset(ergm_vars_long, !variable %in% c("ergm_isolates", "ergm
 
 ggplot(ergm_vars_long, aes(x = value, y = peak_preval)) +
   geom_point(aes(color = nettype)) +
+  scale_color_brewer(palette = "Set1") +
   facet_wrap(~variable, scales = "free") +
   geom_smooth()
 
@@ -401,6 +475,7 @@ igraph_vars_long[, variable := gsub("_|\\.", " ", variable)]
 
 ggplot(igraph_vars_long, aes(x = value, y = peak_time)) +
   geom_point(aes(color = nettype)) +
+  scale_color_brewer(palette = "Set1") +
   facet_wrap(~variable, scales = "free") +
   geom_smooth()
 
@@ -415,6 +490,7 @@ ergm_vars_long <- subset(ergm_vars_long, !variable %in% c("ergm_isolates", "ergm
 
 ggplot(ergm_vars_long, aes(x = value, y = peak_time)) +
   geom_point(aes(color = nettype)) +
+  scale_color_brewer(palette = "Set1") +
   facet_wrap(~variable, scales = "free") +
   geom_smooth()
 ```
@@ -440,6 +516,7 @@ igraph_vars_long[, variable := gsub("_|\\.", " ", variable)]
 
 ggplot(igraph_vars_long, aes(x = value, y = rt_0)) +
   geom_point(aes(color = nettype)) +
+  scale_color_brewer(palette = "Set1") +
   facet_wrap(~variable, scales = "free") +
   geom_smooth()
 
@@ -454,6 +531,7 @@ ergm_vars_long <- subset(ergm_vars_long, !variable %in% c("ergm_isolates", "ergm
 
 ggplot(ergm_vars_long, aes(x = value, y = rt_0)) +
   geom_point(aes(color = nettype)) +
+  scale_color_brewer(palette = "Set1") +
   facet_wrap(~variable, scales = "free") +
   geom_smooth()
 ```
@@ -733,7 +811,7 @@ knitreg(mget(ls(pattern = "model_peak_preval[0-9]")), single.row = TRUE)
 ::: {style="font-size:70%"}
 
 ```{r}
-#| label: regress-repnum
+#| label: regress-
 #| echo: false
 #| output: asis
 #| cache: true
@@ -752,11 +830,38 @@ knitreg(
   mget(x = ls(pattern = "model_rt[0-9]")),
   single.row = TRUE
   )
+```
 
+## Generation time
+
+::: {style="font-size:70%"}
+
+```{r}
+#| label: regress-gentime
+#| echo: false
+#| output: asis
+#| cache: true
+model_gentime0 <- glm(gentime ~ I(factor(nettype)), data = simstats)
+model_gentime1 <- glm(gentime ~ I(factor(nettype)) + igraph_avg_degree, data = simstats)
+
+# model_gentime2 <- glm(gentime ~ I(factor(nettype)) + igraph_avg_degree + igraph_modularity, data = simstats)
+
+# model_gentime3 <- glm(gentime ~ I(factor(nettype)) + igraph_avg_degree + ergm_balance, data = simstats)
+
+model_gentime4 <- glm(gentime ~ I(factor(nettype)) + igraph_avg_degree + ergm_twopath, data = simstats)
+
+model_gentime5 <- glm(gentime ~ I(factor(nettype)) + igraph_avg_degree + ergm_twopath + igraph_transitivity, data = simstats)
+
+model_gentime6 <- glm(gentime ~ I(factor(nettype)) + igraph_avg_degree + ergm_twopath + igraph_avg_path_length, data = simstats)
+
+knitreg(
+  mget(x = ls(pattern = "model_gentime[0-9]")),
+  single.row = TRUE
+  )
+```
 
 ```
 
-:::
 
 :::
 
