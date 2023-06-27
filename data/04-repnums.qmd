@@ -22,7 +22,7 @@ averages <- averages[date <= 50]
 
 library(ggplot2)
 ggplot(averages, aes(x = date, y = Rt)) +
-  scale_color_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set1") +
   geom_line(aes(color = nettype), size = 1.5) +
   labs(
     title    = "Average Rt by Network Type",
@@ -35,5 +35,5 @@ ggplot(averages, aes(x = date, y = Rt)) +
     colour = "Network Type"
   )
 
-ggsave("data/04-repnums-rt-by-nettype.png", width = 8, height = 4, units = "in")
+ggsave("data/figures/04-repnums-rt-by-nettype.png", width = 8, height = 4, units = "in")
 ```

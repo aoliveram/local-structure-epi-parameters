@@ -19,6 +19,7 @@ format:
       data-background-opacity: '0.2'
       data-background-size: 'contain'
     fig-align: center
+    embed-resources: true
 ---
 
 # Motivation {background-color="#890000"}
@@ -68,45 +69,9 @@ Reproduction Number in an **SIR + small world network is on average <1**!
 
 # Simulation Study {background-color="#890000"}
 
-## Setup
+## Setup: Simulation study
 
-::: {.columns}
-
-::: {.column width=50%}
-
-![](data/figures/diagrams-stats.svg)
-
-:::
-
-::: {.column width=50%}
-<!-- Diagram with setup: ergm -> all other graphs -->
-
-- To test this, we conducted a large simulation study looking into the following epidemiological measurements:
-
-    - Reproductive number.
-    - Peak prevalence.
-    - Peak time.
-    - Generation time
-
-
-- We have a population of 1000 individuals.
-
-- We have a disease that is transmitted by contact.
-
-- We used a Susceptible-Exposed-Infected-Recovered [SEIR] model.
-
-- For each SEIR simulation we:
-
-    a. We generated a network with a given set of parameters.
-
-    b. We simulated the disease outbreak on the network.
-
-    c. We computed the epidemiological measurements.
-
-:::
-:::
-
-## Simulation paramters
+DIAGRAM OF THE SIMULATION STUDY SHOWING THE SEIR MODEL AND THE NETWORK MODELS
 
 - Recovery rate: $1/7$ (one week's worth).
 
@@ -126,6 +91,26 @@ Therefore, -->
 
 [^tratecomputation]: To calculate the transmission rate, we use the following formula: $p_t = \frac{p_r}{(C/R + p_r - 1)}$, with C = 14, R = 2, and $p_r = 1/7$
 
+## Setup: What we measured
+
+::: {.columns}
+
+::: {.column width=50%}
+
+Epi measurements
+
+![](data/figures/diagrams-stats.svg){width=100%}
+
+:::
+
+::: {.column width=50%}
+
+Diagram of network variables
+
+:::
+:::
+
+
 ## Network features
 
 ![](data/figures/03-report-ergm-vars.png){fig-align="center"}
@@ -139,6 +124,10 @@ Therefore, -->
 ## Overall distribution of epidemiological measurements
 
 ![](data/figures/03-report-pairwise.png){fig-align="center"}
+
+## *Rt* curve
+
+![](data/figures/04-repnums-rt-by-nettype.png){fig-align="center"}
 
 ## Variance: Reproductive number
 
@@ -185,9 +174,7 @@ Pp <- colo('Peak preval', '984ea3')
 # colo(R, fff)
 ```
 
-Regressed *`r Rt`*, *`r Gt`*, *`r Pt`*, and *`r Pp`* on network features.[^nobs]
-
-[^nobs]: Using 18,015 observations (simulations).
+Regressed *`r Rt`*, *`r Gt`*, *`r Pt`*, and *`r Pp`* on network features (n = 18,015)
 
 ::: {.columns style="font-size: 80%;"}
 
@@ -219,18 +206,24 @@ Regressed *`r Rt`*, *`r Gt`*, *`r Pt`*, and *`r Pp`* on network features.[^nobs]
 
 :::
 
+::: {.fragment style="font-size: 80%;"}
+- Degree-sequence and Erdos-Renyi networks have consistently {{< fa regular hand-point-up >}} `r Pp` and {{< fa regular hand-point-up >}} `r Pt`.
+:::
+
+::: {.fragment style="font-size: 80%;"}
+- Scale-free networks have {{< fa regular hand-point-down >}} `r Pt` and {{< fa regular hand-point-up >}} `r Rt`.
+:::
 ## Discussion
 
-- We care about networks.
+- High heterogeneity in variance.
 
-- Different networks have different effects the spreading of infectious diseases.
+- Scale-free networks show a high variance across outcomes.
 
-- We need to understand how network structure affects epidemiological measurements.
+- `r Rt` is hard to predict as a network function.
 
-- We developed a simulation study to look into this question.
+- Our study only looks at small networks. We need to dive deep into large network models.
 
-- We found that network structure has a significant effect on epidemiological measurements.
-
+- Small permutation in small networks -> flat `r Rt` close to 1.
 
 ## Fin
 
