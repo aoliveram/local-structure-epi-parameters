@@ -66,10 +66,19 @@ Reproduction Number in an **SIR + small world network is on average <1**!
 :::
 
 
-# Simulation Study
+# Simulation Study {background-color="#890000"}
 
 ## Setup
 
+::: {.columns}
+
+::: {.column width=50%}
+
+![](data/figures/diagrams-stats.svg)
+
+:::
+
+::: {.column width=50%}
 <!-- Diagram with setup: ergm -> all other graphs -->
 
 - To test this, we conducted a large simulation study looking into the following epidemiological measurements:
@@ -93,6 +102,9 @@ Reproduction Number in an **SIR + small world network is on average <1**!
     b. We simulated the disease outbreak on the network.
 
     c. We computed the epidemiological measurements.
+
+:::
+:::
 
 ## Simulation paramters
 
