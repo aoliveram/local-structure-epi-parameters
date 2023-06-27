@@ -927,11 +927,12 @@ do.call(
   scale_colour_brewer(palette = "Set1")
 
 ggsave(
-  "figures/03-report-coefficients.png", width = 8, height = 5,
+  "figures/03-report-coefficients.png", width = 4, height = 2.5,
+  scale = 1.5,
   dpi = 300
   )
 
-texreg(
+screenreg(
   list(
     `Peak preval` = model_peak_preval5,
     `Peak time`   = model_peak_time6,

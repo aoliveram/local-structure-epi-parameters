@@ -148,30 +148,57 @@ Therefore, -->
 
 ## Regression analyses
 
-<!-- #e41a1c
+<!--
+#e41a1c
 #377eb8
 #4daf4a
-#984ea3 -->
+#984ea3
+-->
 
 ```{r}
-colo <- function(x, pal) {
-  as.character(match.call()[[2]])
+#| echo: false
+colo <- function(...) {
+  sprintf(
+    '<text style="color: #%s;font-weight: bold">%s</text>',
+    gsub("'", "", as.character(match.call()[[3]])),
+    gsub("'", "", as.character(match.call()[[2]]))
+  )
 }
 
-colo(R)
+Rt <- colo('Rt', 'e41a1c')
+Gt <- colo('Gen time', '377eb8')
+Pt <- colo('Peak time', '4daf4a')
+Pp <- colo('Peak preval', '984ea3')
+
+# colo(R, fff)
 ```
 
-Regressed *Rt*, *Gen time*, *Peak time*, and *Peak preval* on network features.
+Regressed *`r Rt`*, *`r Gt`*, *`r Pt`*, and *`r Pp`* on network features.[^nobs]
+
+[^nobs]: Using 18,015 observations (simulations).
 
 ::: {.columns style="font-size: 80%;"}
 
 ::: {.column width="30%"}
+::: {.fragment}
+- Avg. degree {{< fa regular hand-point-up >}} `r Pt` and {{< fa regular hand-point-down >}} `r Gt`.
+:::
 
-- Higher balance significantly increases Rt.
+::: {.fragment}
+- Higher number of two-paths {{< fa regular hand-point-down >}} `r Pt` and `r Rt`, but {{< fa regular hand-point-up >}} the `r Pp` (more severe).
+:::
 
-- Higher number of two-paths reduces Peak time and Rt, but increases the peak size (more severe).
+::: {.fragment}
+- Transitivity {{< fa regular hand-point-down >}} `r Pp` and {{< fa regular hand-point-up >}} `r Gt`.
+:::
 
-- Triangles push the peak time.
+::: {.fragment}
+- Triangles {{< fa regular hand-point-up >}} the `r Pt`.
+:::
+
+::: {.fragment}
+- Higher balance significantly {{< fa regular hand-point-up >}} `r Rt`.
+:::
 :::
 
 ::: {.column width="70%"}
