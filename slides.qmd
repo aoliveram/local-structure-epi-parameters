@@ -1,39 +1,46 @@
 ---
 title: Simulation Epidemiology
-subtitle: A simulation study on the effect of network structure on epidemiological measurements
+subtitle: A simulation study on the effect of network structure on epidemiological measurements</text><br>Sunbelt 2023<br>Portland, Oregon
 author: 
-    - George G. Vega Yon, Ph.D.
-    - Chong Zhang
-    - Alun Thomas, Ph.D.
-    - Matthew Samore, M.D.
-    - Karim Khader, Ph.D.
-institute: University of Utah<br>Salt Lake City, UT
+  - George G. Vega Yon
+  - Chong Zhang
+  - Alun Thomas
+  - Matthew Samore
+  - Karim Khader
+aspectratio: 169
 date: 2023-06-28
 format:
-    revealjs:
-        slide-number: true
+  revealjs:
+    slide-number: true
+    footer: Vega Yon et al -- ggv.cl/slides/sunbelt2023
+    theme: ["default", "style.scss"]
+    title-slide-attributes: 
+      data-background-image: 'Zoom-Background_PrideU.jpg'
+      data-background-opacity: '0.2'
+      data-background-size: 'contain'
+    fig-align: center
 ---
 
-# Motivation
+# Motivation {background-color="#890000"}
 
-## An odd behavior of Rt
+## *Rt* in Small World Networks 
 
 ::: {.columns}
-::: {.column .fragment .fade-up width="45%" style="font-size:70%"}
+::: {.column .fragment .fade-up width="45%"}
 
-Herd Immunity Threshold vs Reproductive Number
 
-![Source: [Wikipedia](https://commons.wikimedia.org/wiki/File:Herd_immunity_threshold_vs_r0.svg)](https://upload.wikimedia.org/wikipedia/commons/0/0f/Herd_immunity_threshold_vs_r0.svg){width=85%}
+
+![Herd Immunity Threshold vs Reproductive Number [(Wikipedia)](https://commons.wikimedia.org/wiki/File:Herd_immunity_threshold_vs_r0.svg)](https://upload.wikimedia.org/wikipedia/commons/0/0f/Herd_immunity_threshold_vs_r0.svg){width=70%}
 
 - Rt > 1: Epidemic grows.
 - Rt < 1: Epidemic shrinks.
 :::
 
-::: {.column .fragment .fade-up width="45%" style="font-size:70%"}
+::: {.column .fragment .fade-up width="45%"}
 
 But...
 
-![](data/small-world-example.png){width=85%}
+![](data/small-world-example.png){width=70%}
 
 Reproduction Number in an **SIR + small world network is on average <1**!
 
@@ -109,35 +116,69 @@ Therefore, -->
 
 ## Network features
 
-![](data/figures/03-report-ergm-vars.png)
+![](data/figures/03-report-ergm-vars.png){fig-align="center"}
 
 ## Network features (cont.)
 
-![](data/figures/03-report-igraph-vars.png)
+![](data/figures/03-report-igraph-vars.png){fig-align="center"}
 
-# Preliminary results
+# Preliminary results {background-color="#890000"}
 
 ## Overall distribution of epidemiological measurements
 
-![](data/figures/03-report-pairwise.png)
+![](data/figures/03-report-pairwise.png){fig-align="center"}
 
 ## Variance: Reproductive number
 
-![](data/figures/05-variance-rt.png)
+![](data/figures/05-variance-rt.png){fig-align="center"}
 
 ## Variance: Peak time
 
-![](data/figures/05-variance-peak-time.png)
+![](data/figures/05-variance-peak-time.png){fig-align="center"}
 
 ## Variance: Peak prevalence
 
-![](data/figures/05-variance-peak-preval.png)
+![](data/figures/05-variance-peak-preval.png){fig-align="center"}
 
 ## Variance: Generation time
 
-![](data/figures/05-variance-gentime.png)
+![](data/figures/05-variance-gentime.png){fig-align="center"}
 
+# Predicting epidemiological measurements {background-color="#890000"}
 
+## Regression analyses
+
+<!-- #e41a1c
+#377eb8
+#4daf4a
+#984ea3 -->
+
+```{r}
+colo <- function(x, pal) {
+  as.character(match.call()[[2]])
+}
+
+colo(R)
+```
+
+Regressed *Rt*, *Gen time*, *Peak time*, and *Peak preval* on network features.
+
+::: {.columns style="font-size: 80%;"}
+
+::: {.column width="30%"}
+
+- Higher balance significantly increases Rt.
+
+- Higher number of two-paths reduces Peak time and Rt, but increases the peak size (more severe).
+
+- Triangles push the peak time.
+:::
+
+::: {.column width="70%"}
+![](data/figures/03-report-coefficients.png){fig-align="center" width=100%}
+:::
+
+:::
 
 ## Discussion
 

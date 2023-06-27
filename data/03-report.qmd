@@ -175,7 +175,12 @@ setorder(fancytab, variable, nettype)
 ggplot(fancytab, aes(x = mean)) +
   geom_point(aes(y = nettype)) +
   geom_errorbarh(aes(y=nettype, xmin = `2.5%`, xmax = `97.5%`)) +
-  facet_wrap(~variable, ncol = 2, scales = "free")
+  facet_wrap(~variable, ncol = 2, scales = "free") +
+  labs(
+    x = "Value",
+    y = "Network type",
+    caption = "Comparing the mean, sd, and 95% CI of the variables of interest by network type"
+  )
 
 # Saving the figure
 ggsave(
@@ -209,6 +214,7 @@ summRt("peak_time")
 #| label: peak-preval
 #| echo: false
 #| results: "asis"
+#| cache: true
 summRt("peak_preval")
 ```
 
@@ -815,7 +821,6 @@ knitreg(mget(ls(pattern = "model_peak_preval[0-9]")), single.row = TRUE)
 #| echo: false
 #| output: asis
 #| cache: true
-library(lmtest)
 model_rt0 <- glm.nb(rt_0 ~ I(factor(nettype)), data = simstats)
 model_rt1 <- glm.nb(rt_0 ~ I(factor(nettype)) + igraph_avg_degree, data = simstats)
 model_rt2 <- glm.nb(rt_0 ~ I(factor(nettype)) + igraph_avg_degree + igraph_modularity, data = simstats)
@@ -823,6 +828,8 @@ model_rt3 <- glm.nb(rt_0 ~ I(factor(nettype)) + igraph_modularity, data = simsta
 model_rt4 <- glm.nb(rt_0 ~ I(factor(nettype)) + ergm_balance, data = simstats)
 # lrtest(model_rt1, model_rt4)
 model_rt5 <- glm.nb(rt_0 ~ I(factor(nettype)) + ergm_balance + ergm_twopath, data = simstats)
+
+model_rt6 <- glm.nb(rt_0 ~ I(factor(nettype)) + ergm_edges + ergm_triangle + ergm_twopath, data = simstats)
 
 # lrtest(model_rt3, model_rt5)
 
@@ -860,8 +867,85 @@ knitreg(
   )
 ```
 
-```
+:::
 
+## Final regression results
+
+::: {style="font-size:70%"}
+
+```{r}
+#| label: regress-final
+#| echo: false
+#| output: asis
+# Better labels
+
+coefmap <- list(
+  "I(factor(nettype))Scale-free" = "Scale-free",
+  "I(factor(nettype))Small-world (p=0.1)" = "Small-world (p=0.1)",
+  "I(factor(nettype))Small-world (p=0.2)" = "Small-world (p=0.2)",
+  "I(factor(nettype))Degree-sequence" = "Degree-sequence",
+  "I(factor(nettype))Erdos-Renyi" = "Erdos-Renyi",
+  igraph_avg_degree = "Average degree",
+  ergm_twopath = "Two-path",
+  igraph_transitivity = "Transitivity",
+  ergm_triangle = "Triangles",
+  ergm_balance = "Balance"
+)
+
+results <- list(
+    `Peak preval` = model_peak_preval5,
+    `Peak time`   = model_peak_time6,
+    `Gen time`    = model_gentime5,
+    Rt            = model_rt5
+  )
+
+
+hreg <- htmlreg(
+  results,
+  custom.coef.map = coefmap,
+  single.row = TRUE,
+  custom.note = "%stars. In the case of Rt, we used a negative binomial regression model.",
+  outer.rules = 0,
+  inline.css = TRUE,
+  groups = list(`Fixed effects` = 1:5, `Network structure` = 6:10),
+  caption = NULL
+)
+print(hreg, file = "03-report-regression.html")
+
+library(jtools)
+coefmap2 <- setNames(names(coefmap), unlist(coefmap))
+do.call(
+  plot_coefs,
+  list(
+    results,
+    coefs = coefmap2,
+    groups = list(
+      `Fixed effects` = names(coefmap2)[1:5],
+      `Network structure` = names(coefmap2)[6:10]
+      )
+  )) +
+  scale_colour_brewer(palette = "Set1")
+
+ggsave(
+  "figures/03-report-coefficients.png", width = 8, height = 5,
+  dpi = 300
+  )
+
+texreg(
+  list(
+    `Peak preval` = model_peak_preval5,
+    `Peak time`   = model_peak_time6,
+    `Gen time`    = model_gentime5,
+    Rt             = model_rt5
+  ),
+  custom.coef.map = coefmap,
+  single.row = TRUE,
+  custom.note = "%stars. In the case of Rt, we used a negative binomial regression model."
+)
+
+
+```
 
 :::
 
+:::
