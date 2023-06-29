@@ -69,23 +69,31 @@ Reproduction Number in an **SIR + small world network is on average <1**!
 
 # Simulation Study {background-color="#890000"}
 
-## Network models
+## Simulation study<br>*Networks with different structures*
 
-![](graph-drawings-edited.svg){fig-align="center"}
+Six different network models featuring almost (almost) the same density
 
-## Setup: Simulation study
+<!-- ::: {}  -->
 
-DIAGRAM OF THE SIMULATION STUDY SHOWING THE SEIR MODEL AND THE NETWORK MODELS
+![](graph-drawings-edited.svg){fig-align="center" style="width: 60%"}
 
-- Recovery rate: $1/7$ (one week's worth).
+We generated 1,000 networks for each model, using the ERGM as a baseline.
 
-- Mean degree: 14 (contact rate).
+<!-- ::: -->
 
-- Reproductive number of ~2.
+## Simulation study<br>*Outbreaks with different networks*
 
-- Transmission rate of ~0.023.[^tratecomputation]
+We simulated Susceptible-Exposed-Infected-Recovered \[SEIR\] outbreaks using the [*epiworldR*](https://github.com/UofUEpiBio/epiworldR){target="_blank"} package:
 
-- 100 days
+1. Sampled 20,000 **undirected** networks (out of the six types)
+
+2. For each network (with **534** nodes and avg. degree of ~**14**), we simulated an SEIR outbreak:
+
+    a. Starts with **one** exposed node.
+    b. Exposed nodes transmit the disease to their neighbors at a daily rate of **0.023**.[^tratecomputation]
+    c. Infected nodes recover at a daily rate of **1/7**.
+    d. For **100** days.
+
 
 <!-- $RepNum = C_{rate} \times p_t\sum_{k = 0}(1 - p_r)(1 - p_t) = \frac{C_rate}{1 - (1 - p_r)(1 - p_t)}p_t$
 
@@ -95,11 +103,11 @@ Therefore, -->
 
 [^tratecomputation]: To calculate the transmission rate, we use the following formula: $p_t = \frac{p_r}{(C/R + p_r - 1)}$, with C = 14, R = 2, and $p_r = 1/7$
 
-## Setup: What we measured
+## Simulation study<br>*Network and outbreak statistics*
 
 ::: {.columns}
 
-::: {.column width=50%}
+::: {.column width=50% .fragment}
 
 Epi measurements
 
@@ -107,13 +115,39 @@ Epi measurements
 
 :::
 
-::: {.column width=50%}
+::: {.column width=50% style="font-size: 80%" .fragment}
 
-Diagram of network variables
+For each network, we computed:
+
+::: {.fragment}
+- Edgecount and density.
+:::
+::: {.fragment}
+- \# of Balanced triads.
+:::
+::: {.fragment}
+- \# of homophilic ties (grade and gender).
+:::
+::: {.fragment}
+- \# of triangles.
+:::
+::: {.fragment}
+- \# of two-paths.
+:::
+::: {.fragment}
+- Avg. betweenness,  closeness centrality, and eigenvector centrality.
+:::
+::: {.fragment}
+- Avg. path length.
+:::
+::: {.fragment}
+- Modularity.
+:::
 
 :::
 :::
 
+# Preliminary results {background-color="#890000"}
 
 ## Network features
 
@@ -122,8 +156,6 @@ Diagram of network variables
 ## Network features (cont.)
 
 ![](data/figures/03-report-igraph-vars.png){fig-align="center"}
-
-# Preliminary results {background-color="#890000"}
 
 ## Overall distribution of epidemiological measurements
 
