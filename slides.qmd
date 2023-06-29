@@ -31,7 +31,7 @@ format:
 
 
 
-![Herd Immunity Threshold vs Reproductive Number [(Wikipedia)](https://commons.wikimedia.org/wiki/File:Herd_immunity_threshold_vs_r0.svg)](https://upload.wikimedia.org/wikipedia/commons/0/0f/Herd_immunity_threshold_vs_r0.svg){width=70%}
+![Herd Immunity Threshold vs Reproductive Number [(Wikipedia)](https://commons.wikimedia.org/wiki/File:Herd_immunity_threshold_vs_r0.svg)](data/figures/Herd_immunity_threshold_vs_r0.svg){width=70%}
 
 - Rt > 1: Epidemic grows.
 - Rt < 1: Epidemic shrinks.
@@ -68,6 +68,10 @@ Reproduction Number in an **SIR + small world network is on average <1**!
 
 
 # Simulation Study {background-color="#890000"}
+
+## Network models
+
+![](graph-drawings-edited.svg){fig-align="center"}
 
 ## Setup: Simulation study
 
