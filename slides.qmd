@@ -85,14 +85,26 @@ We generated 1,000 networks for each model, using the ERGM as a baseline.
 
 We simulated Susceptible-Exposed-Infected-Recovered \[SEIR\] outbreaks using the [*epiworldR*](https://github.com/UofUEpiBio/epiworldR){target="_blank"} package:
 
+::: {.fragment}
 1. Sampled 20,000 **undirected** networks (out of the six types)
+:::
 
+::: {.fragment}
 2. For each network (with **534** nodes and avg. degree of ~**14**), we simulated an SEIR outbreak:
+:::
 
-    a. Starts with **one** exposed node.
-    b. Exposed nodes transmit the disease to their neighbors at a daily rate of **0.023**.[^tratecomputation]
-    c. Infected nodes recover at a daily rate of **1/7**.
-    d. For **100** days.
+::: {.fragment}
+a. Starts with **one** exposed node.
+:::
+::: {.fragment}
+b. Exposed nodes transmit the disease to their neighbors at a daily rate of **0.023**.[^tratecomputation]
+:::
+::: {.fragment}
+c. Infected nodes recover at a daily rate of **1/7**.
+:::
+::: {.fragment}
+d. For **100** days.
+:::
 
 
 <!-- $RepNum = C_{rate} \times p_t\sum_{k = 0}(1 - p_r)(1 - p_t) = \frac{C_rate}{1 - (1 - p_r)(1 - p_t)}p_t$
@@ -115,12 +127,12 @@ Epi measurements
 
 :::
 
-::: {.column width=50% style="font-size: 80%" .fragment}
+::: {.column width=50% style="font-size: 90%" .fragment}
 
 For each network, we computed:
 
 ::: {.fragment}
-- Edgecount and density.
+- Edge count and density.
 :::
 ::: {.fragment}
 - \# of Balanced triads.
@@ -234,6 +246,14 @@ Regressed *`r Rt`*, *`r Gt`*, *`r Pt`*, and *`r Pp`* on network features (n = 18
 ::: {.fragment}
 - Higher balance significantly {{< fa regular hand-point-up >}} `r Rt`.
 :::
+
+::: {.fragment}
+- Degree-sequence and Erdos-Renyi networks have consistently {{< fa regular hand-point-up >}} `r Pp` and {{< fa regular hand-point-up >}} `r Pt`.
+:::
+
+::: {.fragment}
+- Scale-free networks have {{< fa regular hand-point-down >}} `r Pt` and {{< fa regular hand-point-up >}} `r Rt`.
+:::
 :::
 
 ::: {.column width="70%"}
@@ -242,27 +262,30 @@ Regressed *`r Rt`*, *`r Gt`*, *`r Pt`*, and *`r Pp`* on network features (n = 18
 
 :::
 
-::: {.fragment style="font-size: 80%;"}
-- Degree-sequence and Erdos-Renyi networks have consistently {{< fa regular hand-point-up >}} `r Pp` and {{< fa regular hand-point-up >}} `r Pt`.
-:::
-
-::: {.fragment style="font-size: 80%;"}
-- Scale-free networks have {{< fa regular hand-point-down >}} `r Pt` and {{< fa regular hand-point-up >}} `r Rt`.
-:::
 ## Discussion
 
-- High heterogeneity in variance.
-
-- Scale-free networks show a high variance across outcomes.
-
-- `r Rt` is hard to predict as a network function.
-
-- Our study only looks at small networks. We need to dive deep into large network models.
-
-- Small permutation in small networks -> flat `r Rt` close to 1.
-
-## Fin
-
-::: {style="font-size: 120%; text-align: center;"}
-Thank you!
+::: {.fragment}
+- High heterogeneity in the variance of the studied stats... especially in scale-free networks.
 :::
+
+::: {.fragment}
+- We captured part of the heterogeneity as a function of degree, two paths, transitivity, triangles, and balance.
+:::
+
+::: {.fragment}
+- Yet the model does not capture some properties of Erdos-Renyi and degree-sequence networks.
+:::
+
+::: {.fragment}
+- `r Rt` is hard to predict as a function of network structure.
+:::
+
+::: {.fragment}
+- Our study only looks at small networks. We need to dive deep into large network models.
+:::
+
+::: {.fragment}
+- Small permutation in small networks -> flat `r Rt` close to 1.
+:::
+
+
