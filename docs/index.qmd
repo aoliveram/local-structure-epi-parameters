@@ -20,13 +20,14 @@ format:
       data-background-size: 'contain'
     fig-align: center
     embed-resources: true
+    mermaid-format: png
 ---
 
 # Motivation {background-color="#890000"}
 
-## *Rt* in Small World Networks[^fnd] 
+## *R$_t$* in Small World Networks[^fnd] 
 
-[^fnd]: Work supported by the Centers for Disease Control and Prevention; Award number 1U01CK000585; 75D30121F00003
+[^fnd]: Work supported by the Centers for Disease Control and Prevention; Award number 1U01CK000585; 75D30121F00003.
 
 ::: {.columns}
 ::: {.column .fragment .fade-up width="45%"}
@@ -35,8 +36,8 @@ format:
 
 ![Herd Immunity Threshold vs Reproductive Number [(Wikipedia)](https://commons.wikimedia.org/wiki/File:Herd_immunity_threshold_vs_r0.svg)](data/figures/Herd_immunity_threshold_vs_r0.svg){width=70%}
 
-- Rt > 1: Epidemic grows.
-- Rt < 1: Epidemic shrinks.
+- *R$_t$* > 1: Epidemic grows.
+- *R$_t$* < 1: Epidemic shrinks.
 :::
 
 ::: {.column .fragment .fade-up width="45%"}
@@ -45,7 +46,7 @@ But...
 
 ![](data/small-world-example.png){width=70%}
 
-Reproduction Number in an **SIR + small world network is on average <1**!
+The reproduction number in a **SIR + small-world network is, on average, $<$ 1**!
 
 ::: 
 :::
@@ -93,6 +94,18 @@ We generated 1,000 networks for each model, using the ERGM as a baseline.
 ## Simulation study<br>*Outbreaks with different networks*
 
 We simulated 20,000 Susceptible-Exposed-Infected-Recovered \[SEIR\] outbreaks using the [*epiworldR*](https://github.com/UofUEpiBio/epiworldR){target="_blank"} package:
+
+::: {sytle="width: 60%; text-align: center; margin: auto; font-size: 120%"}
+
+```{mermaid}
+graph LR
+    A[Susceptible] --> B[Exposed]
+    B --> C[Infected]
+    C --> D[Recovered]
+```
+
+:::
+
 
 ::: {.fragment}
 1. Sampled a network out of the six types.
@@ -155,7 +168,7 @@ For each network, we computed:
 - \# of triangles.
 :::
 ::: {.fragment}
-- \# of two-paths.
+- \# of two paths.
 :::
 ::: {.fragment}
 - Avg. betweenness,  closeness centrality, and eigenvector centrality.
@@ -189,6 +202,8 @@ For each network, we computed:
 ![](data/figures/04-repnums-rt-by-nettype.png){fig-align="center"}
 
 ## Variance: Reproductive number
+
+Using 1,000 bootstrap samples, we computed the variance of the reproductive number for each network type.
 
 ![](data/figures/05-variance-rt.png){fig-align="center"}
 
@@ -280,6 +295,10 @@ Regressed *`r Rt`*, *`r Gt`*, *`r Pt`*, and *`r Pp`* on network features (n = 18
 ::: {.column width=40%}
 
 ::: {.fragment}
+- In small networks, as $p \to 0$, `r Rt`$\to$ 1.
+:::
+
+::: {.fragment}
 - High heterogeneity in the **variance** of the studied stats,  especially in **scale-free networks**.
 :::
 
@@ -297,10 +316,6 @@ Regressed *`r Rt`*, *`r Gt`*, *`r Pt`*, and *`r Pp`* on network features (n = 18
 
 ::: {.fragment}
 - Our study only looks at small networks. We need to dive deep into large network models.
-:::
-
-::: {.fragment}
-- In small networks, as $p \to 0$, `r Rt`$\to$ 1.
 :::
 
 :::
