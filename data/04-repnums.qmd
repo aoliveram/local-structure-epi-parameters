@@ -2,7 +2,6 @@
 format: html
 ---
 
-
 ```{r}
 #| echo: false
 library(data.table)

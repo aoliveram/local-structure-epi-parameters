@@ -4,9 +4,9 @@
 #SBATCH --job-name=00-random-graphs
 #SBATCH --output=00-rand-graphs-%j.out
 #SBATCH --mail-type=END
-#SBATCH --mail-user=george.vegayon@utah.edu
+#SBATCH --mail-user=an.oliveram@udd.cl
 #SBATCH --mem=20G
-#SBATCH --time=4:00:00
+#SBATCH --time=11:00:00
 
 library(epiworldR)
 library(slurmR)
@@ -22,42 +22,54 @@ SB_OPTS <- list(
   account    = "vegayon-np",
   partition  = "vegayon-shared-np",
   mem        = "8G"
-  )
+)
 
 
 # Load the simulated networks from the RDS file
 message("Loading the networks")
 
-message("Done loading the networks")
-
 # Saving the networks as individual graphs
-if (!file.exists(sprintf("data/graphs/%04i-ergm.rds", 1))) {
-
-  networks <- readRDS("data/Simulated_1000_networks.rds")
-
-  for (i in seq_along(networks)) {
-
-    fn <- sprintf("data/graphs/%04i-ergm.rds", i)
-
-    if (file.exists(fn))
-      next
-
-    saveRDS(networks[[i]], fn, compress = FALSE)
-
+if (!file.exists(sprintf("data/graphs/%04i-ergm.rds", 1))) {  # Verifica si el primer archivo de red ya existe
+  
+  networks <- readRDS("data/Simulated_1000_networks.rds")  # Carga las redes simuladas desde un archivo RDS
+  
+  for (i in seq_along(networks)) {  # Itera sobre cada red en la lista 'networks'
+    
+    fn <- sprintf("data/graphs/%04i-ergm.rds", i)  # si i=3, fn será data/graphs/0003-ergm.rds
+    
+    if (file.exists(fn))  # Verifica si el archivo ya existe
+      next  # Si el archivo ya existe, pasa al siguiente
+    
+    saveRDS(networks[[i]], fn, compress = FALSE)  # guarda los datos contenidos en networks[[i]] en el archivo cuyo nombre está almacenado en fn.
+    
   }
-
+  
 }
 
+networks <- list.files("data/graphs", pattern = "[0-9]+-ergm\\.rds$", full.names = TRUE) #0001-ergm.rds -> coincide, abc-ergm.rds -> no coincide
+
+message("Done loading the networks")
+
 net1 <- readRDS("data/graphs/0001-ergm.rds")
-networks <- list.files("data/graphs", pattern = "[0-9]+-ergm\\.rds$", full.names = TRUE)
+
+class(net1)
+library(network)
+network.density(net1)
+is.directed(net1)
+get.edge.attribute(net1, "weight")
+get.edge.attribute(net1, "sign")
+list.edge.attributes(net1)
+head(as.data.frame(net1, unit = "vertices"))
 
 # All networks have the same attributes. So we get them once
-v_attrs <- as.data.frame(net1, unit = "vertices") |>
-  as.list()
+v_attrs <- as.data.frame(net1, unit = "vertices") |>    
+  as.list()  #atributos asociados a cada nodo
 
 n_nodes <- network::network.size(net1)
 
-# Simulating scalefree networks with same density and size
+sum(v_attrs$gender == 1)/n_nodes
+
+# Simulating scalefree networks with same density and size --------------------
 # as the original networks
 message("Simulating scalefree networks")
 random_seeds <- sample.int(1e6, length(networks), replace = FALSE)
@@ -98,7 +110,7 @@ networks_sf <- Slurm_lapply(seq_along(networks), \(i) {
   )
 message("Done simulating scalefree networks")
 
-# Simulating smallworkd networks with same density and size
+# Simulating smallworkd networks with same density and size -------------------
 # as the original networks
 message("Simulating smallworld networks p=0.1")
 networks_sw <- Slurm_lapply(seq_along(networks), \(i) {
@@ -142,6 +154,7 @@ networks_sw <- Slurm_lapply(seq_along(networks), \(i) {
   export = c("v_attrs", "n_nodes", "random_seeds")
 )
 message("Done simulating smallworld p=0.1 networks")
+
 
 # Small-world with a larger number of rewires ----------------------------------
 
@@ -189,7 +202,7 @@ networks_sw <- Slurm_lapply(seq_along(networks), \(i) {
   
 message("Done simulating smallworld networks p0.2")
 
-# Degree-sequence preserve rewiring of the networks
+# Degree-sequence preserve rewiring of the networks --------------------------
 message("Degree-sequence preserve rewiring of the networks")
 networks_r <- Slurm_lapply(seq_along(networks), \(i) {
 
@@ -229,7 +242,7 @@ networks_r <- Slurm_lapply(seq_along(networks), \(i) {
   )
 message("Done degree-sequence preserve rewiring of the networks")
 
-# Erdos-Renyi networks with same density and size
+# Erdos-Renyi networks with same density and size -----------------------------
 # as the original networks
 message("Simulating Erdos-Renyi networks")
 networks_er <- Slurm_lapply(seq_along(networks), \(i) {

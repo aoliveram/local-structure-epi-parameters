@@ -4,12 +4,19 @@
 #SBATCH --job-name=abm-simulation-main
 #SBATCH --output=abm-simulation-%j.out
 #SBATCH --mail-type=ALL
-#SBATCH --mail-user=george.vegayon@utah.edu
+#SBATCH --mail-user=an.oliveram@udd.cl
 #SBATCH --mem=32G
 
 library(epiworldR)
 library(slurmR)
 library(network)
+
+# Set the slurmR options
+SB_OPTS <- list(
+    account    = "vegayon-np",
+    partition  = "vegayon-shared-np",
+    mem        = "8G"
+    )
 
 # Set the seed for reproducibility
 set.seed(1231)
@@ -19,23 +26,15 @@ set.seed(1231)
 graph_files <- list.files("data/graphs", full.names = TRUE)
 
 # Set the parameters
-nsims <- 20000
+nsims <- 20000 # 20,000 simulaciones se ejecuta utilizando un archivo de red seleccionado aleatoriamente de data/graphs
 Njobs <- 40L
 
-# Set the slurmR options
-SB_OPTS <- list(
-    account    = "vegayon-np",
-    partition  = "vegayon-shared-np",
-    mem        = "8G"
-    )
-
-
 # Model parameters
-incubation_days    <- 7
-recovery_rates     <- 1/7
-contact_rates      <- 14 # Average observed
+incubation_days    <- 7                                # sigma=1/7 (7 dias de expuesto a infectado)
+recovery_rates     <- 1/7                              # gamma=1/7 (7 dias de infectado a recuperado)
+contact_rates      <- 14 # Average in network
 reproductive       <- 2
-transmission_rates <- recovery_rates/(contact_rates/reproductive + recovery_rates - 1) # Analytical sol
+transmission_rates <- recovery_rates/(contact_rates/reproductive + recovery_rates - 1) # beta=1/43 Analytical sol (prob~1/3 en que un infectado infecte)
 
 
 # Group infectiousness and recovery_rate into a list of length
@@ -49,7 +48,7 @@ params <- Map(\(t_rate, r_rate, i, netfile, simid) {
     transmission_rate = t_rate,
     recovery_rate     = r_rate,
     inc_days          = i,
-    seed              = seeds[simid],
+    seed              = seeds[simid], # simid=simulation_id
     simid             = simid
     )
   },
@@ -60,9 +59,14 @@ params <- Map(\(t_rate, r_rate, i, netfile, simid) {
   simid   = 1:nsims
   )
 
+head(params)
+
 # Sampling
 
 # opts_slurmR$debug_on()
+
+if (!dir.exists("data/sims"))
+  dir.create("data/sims")
 
 res <- Slurm_lapply(params, FUN = \(param) {
 
@@ -86,7 +90,7 @@ res <- Slurm_lapply(params, FUN = \(param) {
 
   if (file.exists(fn)) {
     message("File ", fn, " already exists, skipping...")
-    return(NULL)
+  #  return(NULL)
   }
 
   ans <- tryCatch({
@@ -143,8 +147,10 @@ res <- Slurm_lapply(params, FUN = \(param) {
       netfile   = param$netfile,
       history   = get_hist_total(model),
       repnum    = plot_reproductive_number(model, plot = FALSE),
+      #repnum    = get_reproductive_number(model),
       incidence = plot_incidence(model, plot = FALSE),
       gentime   = plot_generation_time(model, plot = FALSE),
+      #gentime   = get_generation_time(model),
       params    = param
     ), fn, compress = FALSE)
 

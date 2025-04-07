@@ -3,10 +3,12 @@
 #SBATCH --partition=vegayon-shared-np
 #SBATCH --mem=128GB
 #SBATCH --job-name=02-dataprep
-#SBATCH --time=24:00:00
+#SBATCH --time=8:00:00
 #SBATCH --mail-type=all
-#SBATCH --mail-user=george.vegayon@utah.edu
+#SBATCH --mail-user=an.oliveram@udd.cl
 
+#library(network)#, lib.loc = "/uufs/chpc.utah.edu/common/home/vegayon-group1/george/R/x86_64-pc-linux-gnu-library/4.2/")
+#library(ergm)#, lib.loc = "/uufs/chpc.utah.edu/common/home/vegayon-group1/george/R/x86_64-pc-linux-gnu-library/4.2/")
 library(network, lib.loc = "/uufs/chpc.utah.edu/common/home/vegayon-group1/george/R/x86_64-pc-linux-gnu-library/4.2/")
 library(ergm, lib.loc = "/uufs/chpc.utah.edu/common/home/vegayon-group1/george/R/x86_64-pc-linux-gnu-library/4.2/")
 library(igraph)
@@ -20,11 +22,12 @@ ncores <- 30
 SB_OPTS <- list(
   account    = "vegayon-np",
   partition  = "vegayon-shared-np",
-  mem        = "8G"
+  mem        = "16G"
   )
 
 # Read the Simulated data rds file from data/
 message("Loading the networks files")
+
 networks <- list.files(
   "data/graphs", pattern = "[0-9]+-(ergm|sf|swp[0-9]{2}|degseq|er)\\.rds$",full.names = TRUE) 
 
@@ -33,7 +36,7 @@ fn_ergm   <- "data/02-dataprep-ergm.csv.gz"
 fn_igraph <- "data/02-dataprep-igraph.csv.gz"
 fn_sim    <- "data/02-dataprep-sim.csv.gz"
 
-# Computing statistics using ERGM
+# Computing statistics using ERGM ------------------------------------------
 if (!file.exists(fn_ergm)) {
   message("Computing statistics using ERGM")
   S_ergm <- Slurm_lapply(seq_along(networks), \(i) {
@@ -131,14 +134,112 @@ if (!file.exists(fn_igraph)) {
   S_igraph <- fread(fn_igraph)
 }
 
+head(S_igraph)
+
 # Combining the datasets
 S <- merge(S_igraph, S_ergm, by = "netfile", all = TRUE)
 
 S[, nettype := gsub(".+-([a-z0-9]+)\\.rds", "\\1", netfile)]
 S[, netid   := gsub(".+/([0-9]+-[a-z0-9]+)\\.rds", "\\1", netfile)]
 
+###### estudio --
 
 # Reading simulation results ---------------------------------------------------
+simfiles <- list.files("data/sims", pattern = "-sim-[0-9]+\\.rds$", full.names = TRUE)
+x <- readRDS(simfiles[[86]])
+
+res <- tryCatch({
+  history <- data.table(x$history)
+  head(history)
+  Incidence <- data.table(x$incidence)
+  head(Incidence)
+  
+  # Index of the max prevalence (original)
+  peak_idx    <- which.max(x$incidence$Exposed)
+  peak_preval <- x$incidence$Exposed[peak_idx]
+  peak_time   <- as.integer(rownames(x$incidence)[peak_idx])
+  
+  # Index of the max prevalence (equivalent, so 'n' is the number of new 'Exposed')
+  peak_idx_rep <- which.max(x$repnum$n)
+  peak_preval_rep <- x$repnum$n[peak_idx_rep]
+  peak_time_rep   <- x$repnum$date[peak_idx_rep]
+  
+  # the same? Nop, this is 'total exposed' at day #.
+  history_expected <- subset(history, state == "Exposed")
+  peak_idx_exp    <- which.max(history_expected$count)
+  peak_preval_exp <- history_expected$count[peak_idx_exp]
+  peak_time_exp   <- history_expected$date[peak_idx_exp]
+  
+  # Index of the max prevalence (highest number of cases)
+  history_infected <- subset(history, state == "Infected")
+  peak_idx_inf    <- which.max(history_infected$count)
+  peak_preval_inf <- history_infected$count[peak_idx_inf]
+  peak_time_inf   <- history_infected$date[peak_idx_inf]
+  
+  # Rt in the peak
+  rt_idx     <- with(x$repnum, which.min(abs(peak_time - date)))
+  rt         <- x$repnum$avg[rt_idx]
+  dispersion <- 1/x$repnum$sd[rt_idx]^2
+  
+  # Mean Rt
+  susceptibles_data <- subset(history, state == "Susceptible")
+  plot(susceptibles_data$counts)
+  
+  plot(x$repnum$n)
+  
+  cor(x$repnum$n , susceptibles_data$counts)
+  
+  head(x$repnum, -15)
+  with(x$repnum, sum(avg * n, na.rm = TRUE))
+  with(x$repnum, sum(n, na.rm = TRUE))
+  r_mean     <- with(x$repnum, sum(avg * n, na.rm = TRUE)/
+                       sum(n, na.rm = TRUE))
+  
+  head(x$repnum)
+  head(x$gentime)
+  
+  #  Rt per day
+  rt_0 <- with(x$repnum[x$repnum$date == 0,,drop=FALSE], avg)
+  rt_1 <- with(x$repnum[x$repnum$date == 1,,drop=FALSE], avg)
+  rt_2 <- with(x$repnum[x$repnum$date == 2,,drop=FALSE], avg)
+  rt_3 <- with(x$repnum[x$repnum$date == 3,,drop=FALSE], avg)
+  rt_4 <- with(x$repnum[x$repnum$date == 4,,drop=FALSE], avg)
+  rt_5 <- with(x$repnum[x$repnum$date == 5,,drop=FALSE], avg)
+  
+  gentime <- with(x$gentime, sum(avg * n, na.rm = TRUE)/
+                    sum(n, na.rm = TRUE))
+  
+  # Final psource_exposure_date# Final prevalence
+  final_preval <- with(
+    x$history, tail(counts[state == "Removed"], 1))
+  
+  # Return a data.table
+  data.table(
+    simfile           = if (length(fn)) fn else NA,
+    simid             = if (length(x$simid)) x$simid else NA,
+    peak_time         = if (length(peak_time)) peak_time else NA,
+    peak_preval       = if (length(peak_preval)) peak_preval else NA,
+    rt                = if (length(rt)) rt else NA,
+    rt_mean           = if (length(r_mean)) r_mean else NA,
+    rt_0              = if (length(rt_0)) rt_0 else NA,
+    rt_1              = if (length(rt_1)) rt_1 else NA,
+    rt_2              = if (length(rt_2)) rt_2 else NA,
+    rt_3              = if (length(rt_3)) rt_3 else NA,
+    rt_4              = if (length(rt_4)) rt_4 else NA,
+    rt_5              = if (length(rt_5)) rt_5 else NA,
+    dispersion        = if (length(dispersion)) dispersion else NA,
+    #gentime           = if (length(gentime)) gentime else NA,
+    final_preval      = if (length(final_preval)) final_preval else NA,
+    transmission_rate = if (length(x$param$transmission_rate)) x$param$transmission_rate else NA,
+    inc_days          = if (length(x$param$inc_days)) x$param$inc_days else NA,
+    recovery_rate     = if (length(x$param$recovery_rate)) x$param$recovery_rate else NA
+  )
+}, error=function(e) e)
+
+
+
+########## fin estudio
+
 
 if (!file.exists(fn_sim)) {
 
@@ -152,7 +253,12 @@ if (!file.exists(fn_sim)) {
     res <- tryCatch({
       history <- data.table(x$history)
 
-      # Index of the max prevalence
+      # Index of the max prevalence (highest number of cases)
+      #history_infected <- subset(history, state == "Infected")
+      #peak_idx_inf    <- which.max(history_infected$count)
+      #peak_preval <- history_infected$count[peak_idx_inf]
+      #peak_time   <- history_infected$date[peak_idx_inf]
+      
       peak_idx    <- which.max(x$incidence$Exposed)
       peak_preval <- x$incidence$Exposed[peak_idx]
       peak_time   <- as.integer(rownames(x$incidence)[peak_idx])
@@ -173,35 +279,38 @@ if (!file.exists(fn_sim)) {
       rt_3 <- with(x$repnum[x$repnum$date == 3,,drop=FALSE], avg)
       rt_4 <- with(x$repnum[x$repnum$date == 4,,drop=FALSE], avg)
       rt_5 <- with(x$repnum[x$repnum$date == 5,,drop=FALSE], avg)
-
+      
+      #repnum_df <- data.table(x$repnum)
+      #gentime_df <- data.table(x$gentime) 
+      
       gentime <- with(x$gentime, sum(avg * n, na.rm = TRUE)/
         sum(n, na.rm = TRUE))
 
-      # Final prevalence
+      # Final psource_exposure_date# Final prevalence
       final_preval <- with(
         x$history, tail(counts[state == "Removed"], 1)
         )
 
       # Return a data.table
       data.table(
-        simfile           = fn,
-        simid             = x$simid,
-        peak_time         = peak_time,
-        peak_preval       = peak_preval,
-        rt                = rt,
-        rt_mean           = r_mean,
-        rt_0              = rt_0,
-        rt_1              = rt_1,
-        rt_2              = rt_2,
-        rt_3              = rt_3,
-        rt_4              = rt_4,
-        rt_5              = rt_5,
-        dispersion        = dispersion,
-        gentime           = gentime,
-        final_preval      = final_preval,
-        transmission_rate = x$param$transmission_rate,
-        inc_days          = x$param$inc_days,
-        recovery_rate     = x$param$recovery_rate
+        simfile           = if (length(fn)) fn else NA,
+        simid             = if (length(x$simid)) x$simid else NA,
+        peak_time         = if (length(peak_time)) peak_time else NA,
+        peak_preval       = if (length(peak_preval)) peak_preval else NA,
+        rt                = if (length(rt)) rt else NA,
+        rt_mean           = if (length(r_mean)) r_mean else NA,
+        rt_0              = if (length(rt_0)) rt_0 else NA,
+        rt_1              = if (length(rt_1)) rt_1 else NA,
+        rt_2              = if (length(rt_2)) rt_2 else NA,
+        rt_3              = if (length(rt_3)) rt_3 else NA,
+        rt_4              = if (length(rt_4)) rt_4 else NA,
+        rt_5              = if (length(rt_5)) rt_5 else NA,
+        dispersion        = if (length(dispersion)) dispersion else NA,
+        gentime           = if (length(gentime)) gentime else NA,
+        final_preval      = if (length(final_preval)) final_preval else NA,
+        transmission_rate = if (length(x$param$transmission_rate)) x$param$transmission_rate else NA,
+        inc_days          = if (length(x$param$inc_days)) x$param$inc_days else NA,
+        recovery_rate     = if (length(x$param$recovery_rate)) x$param$recovery_rate else NA
       )
     }, error=function(e) e)
 
@@ -211,7 +320,7 @@ if (!file.exists(fn_sim)) {
     res
 
   }, njobs = ncores, sbatch_opt =  SB_OPTS, export = "networks", job_name = "02-dataprep-sims") |> rbindlist()
-
+  
   fwrite(simres, fn_sim, compress = "auto")
 
   message("Done processing the simulation results")
@@ -223,6 +332,16 @@ if (!file.exists(fn_sim)) {
   
 }
 
+#head(S_igraph$netfile)
+
+#a <- gsub(".+/([0-9]+-[a-z0-9]+)-sim.+", "\\1", simres$simfile)
+#head(a); class(a)
+#b <- data.frame(simres$netid)
+#c <- data.frame(S$netid)
+
+
+
+
 simres[, netid := gsub(".+/([0-9]+-[a-z0-9]+)-sim.+", "\\1", simfile)]
 
 print(head(S))
@@ -230,11 +349,13 @@ print(head(S))
 print(head(simres))
 
 # Merge the datasets
+S_test <- merge(simres, S, by = "netid", all.x = TRUE, all.y = FALSE)
+
 S <- merge(simres, S, by = "netid", all.x = TRUE, all.y = FALSE)
 
 fwrite(
   S,
-  file = "data/02-dataprep-network-stats.csv.gz"
+  file = "data/02-dataprep-network-stats-new-exposed.csv.gz"
 )
 
 message("Done!")

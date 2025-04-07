@@ -11,10 +11,21 @@ execute:
 #| echo: false
 library(data.table)
 library(ggplot2)
-simstats <- fread("data/02-dataprep-network-stats.csv.gz")
+simstats <- fread("data/02-dataprep-network-stats-new-exposed.csv.gz")
 
 # Removing cases with 0 transmission
 simstats <- simstats[peak_preval > 1]
+
+# Rescaling variables
+n <- 534
+twopath_complete <- (n * (n - 1) * (n - 2)) / 2
+balance_complete <- ergm_triangle <- (n * (n - 1) * (n - 2)) / 6
+triangle_complete <- balance_complete
+
+simstats$ergm_twopath <- (simstats$ergm_twopath / twopath_complete) * 100 *100
+simstats$ergm_balance <- (simstats$ergm_balance / balance_complete) * 100
+simstats$ergm_triangle <- (simstats$ergm_triangle / triangle_complete) * 100
+simstats$igraph_density <- simstats$igraph_density * 100
 
 # # Removing Small-world b/c networks have double density
 # simstats <- simstats[nettype != "sw"]
@@ -47,19 +58,11 @@ summRt <- function(val) {
   dat <- simstats[, .SD, .SDcols = c(val, "nettype")]
 
   nsims <- dat[, .N]
-
-  dat[, c(as.list(
-    quantile(.SD[[1]], probs = c(.025, .5,.975), na.rm = TRUE)),
-    list(
-      avg = mean(.SD[[1]], na.rm = TRUE) * ifelse(
-        grepl("(^rt|preval$)", val), adj, 1),
-      n   = .N
-    )),
-  by = "nettype", .SDcols = val] |>
-  knitr::kable(
-    caption = sprintf("%s at day 0 by network type", val),
-    digits = 2
-    ) |>print()
+  
+  # Quantile
+  dat[, c(
+    as.list(quantile(.SD[[1]], probs = c(.025, .5,.975), na.rm = TRUE)),
+    list(avg=mean(.SD[[1]],na.rm=TRUE)*ifelse(grepl("(^rt|preval$)",val),adj,1), n=.N)    ),      by = "nettype", .SDcols = val] |> knitr::kable(caption=sprintf("%s at day 0 by network type", val),digits = 2) |>print()
 
   # Replicating the ER network
   ntypes <- setdiff(dat[, unique(nettype)], "ERGM")
@@ -70,11 +73,8 @@ summRt <- function(val) {
   dat_ergm[, is_ergm := "yes"]
 
   for (nty in ntypes) {
-    dat <- rbindlist(list(
-      dat, 
-      dat_ergm[, nettype := nty]
-      ), use.names = TRUE)
-  }
+    dat <- rbindlist(list(dat, dat_ergm[, nettype := nty] ), use.names = TRUE)
+    }
 
   # Drawing the histogram plot
   ans <- ggplot(dat, aes(x = dat[[val]])) +
@@ -97,7 +97,7 @@ summRt <- function(val) {
 
   # Saving the plot in 8 x 8 in in figures
   ggsave(
-    filename = sprintf("figures/03-report-dist-%s.png", val),
+    filename = sprintf("figures/03-report-dist-new-exposed-%s.png", val),
     plot = ans,
     width = 8,
     height = 4,
@@ -111,19 +111,18 @@ summRt <- function(val) {
 
 # Context
 
-- We fitted an ERGM to the school network data.
+-   We fitted an ERGM to the school network data.
 
-- Using the fitted model, we simulated 1000 networks.
+-   Using the fitted model, we simulated 1000 networks.
 
-- For each one of the 1000 networks, we simulated a scale-free, small-world, and degree-sequence network.
+-   For each one of the 1000 networks, we simulated a scale-free, small-world, and degree-sequence network.
 
-- We then sampled 10,000 networks from the 4,000 (with replacement) and simulated outbreaks on an SEIR model with the following parameters:
+-   We then sampled 10,000 networks from the 4,000 (with replacement) and simulated outbreaks on an SEIR model with the following parameters:
 
-  - Initial prevalence of 5 individuals.
-  - Incubation between `r simstats[, quantile(inc_days, na.rm = TRUE, probs = c(.025, .975))]` 
-  - Transmission rate between `r simstats[, quantile(transmission_rate, na.rm = TRUE, probs = c(.025, .975))]`
-  - Recovery rate between `r simstats[, quantile(recovery_rate, na.rm = TRUE, probs = c(.025, .975))]`
-
+    -   Initial prevalence of 5 individuals.
+    -   Incubation between `r simstats[, quantile(inc_days, na.rm = TRUE, probs = c(.025, .975))]`
+    -   Transmission rate between `r simstats[, quantile(transmission_rate, na.rm = TRUE, probs = c(.025, .975))]`
+    -   Recovery rate between `r simstats[, quantile(recovery_rate, na.rm = TRUE, probs = c(.025, .975))]`
 
 # Pairwise comparisons with the original network
 
@@ -132,6 +131,7 @@ Here are the variables we are interested in
 ```{r}
 # Dependent variables
 depvars <- c("peak_time", "peak_preval", "rt", "rt_mean", "dispersion", "gentime")
+#depvars <- c("peak_time", "peak_preval", "rt", "rt_mean", "dispersion")
 
 # Independent variables
 indepvars <- c("inc_days", "recovery_rate", "transmission_rate")
@@ -154,6 +154,7 @@ fancytab <- simstats[, lapply(.SD, function(x) {
       sd(x, na.rm = TRUE),
       quantile(x, probs = c(.025, .975), na.rm = TRUE)
     )
+  #}), .SDcols = c("peak_time", "peak_preval", "rt_0"), by = "nettype"] 
   }), .SDcols = c("peak_time", "peak_preval", "rt_0", "gentime"), by = "nettype"] 
 
 
@@ -184,7 +185,7 @@ ggplot(fancytab, aes(x = mean)) +
 
 # Saving the figure
 ggsave(
-  filename = "figures/03-report-pairwise.png",
+  filename = "figures/03-report-pairwise-new-exposed.png",
   width = 8,
   height = 4,
   units = "in"
@@ -192,11 +193,9 @@ ggsave(
 
 ```
 
-
 # Differences between network types
 
-::: {.panel-tabset}
-
+::: panel-tabset
 ## Peak time
 
 There's no much diversity in peak time for the different network types
@@ -248,10 +247,7 @@ summRt("dispersion")
 ```
 
 We do observe a lower dispersion in scale-free networks compared to the ERGM networks.
-
-
 :::
-
 
 # Model fitting
 
@@ -292,7 +288,7 @@ ggplot(
 
 # Saving the figure in 8 x 8 in
 ggsave(
-  "figures/03-report-igraph-vars.png",
+  "figures/03-report-igraph-vars-new-exposed.png",
   width = 8,
   height = 6,
   units = "in"
@@ -305,7 +301,7 @@ simstats[, igraph_avg_closeness := scale(igraph_avg_closeness)]
 
 ```
 
-Variables have wild scales. We need to scale them before fitting the model. 
+Variables have wild scales. We need to scale them before fitting the model.
 
 ## ERGM variables
 
@@ -336,7 +332,7 @@ ggplot(ergm_vars_long, aes(x = nettype, y = value)) +
 
 # Saving in 8 x 8 in
 ggsave(
-  "figures/03-report-ergm-vars.png",
+  "figures/03-report-ergm-vars-new-exposed.png",
   width = 8,
   height = 6,
   units = "in"
@@ -419,8 +415,7 @@ toinclude_final <- c(
 
 # Simple association of network variables with dependent variables
 
-::: {.panel-tabset}
-
+::: panel-tabset
 ## Peak prevalence
 
 ```{r}
@@ -541,14 +536,11 @@ ggplot(ergm_vars_long, aes(x = value, y = rt_0)) +
   facet_wrap(~variable, scales = "free") +
   geom_smooth()
 ```
-
-
 :::
 
 # Terms correlations
 
-::: {.panel-tabset}
-
+::: panel-tabset
 ## Two-path & balance
 
 ```{r}
@@ -604,7 +596,6 @@ ggplot(tmp, aes(x = value, y = nettype)) +
   # Suppress the legend
   theme(legend.position = "none")
 ```
-
 :::
 
 # Models
@@ -627,18 +618,18 @@ vars <- setdiff(vars, c("ergm_gwdeg.fixed.0.25", "transmission_rate"))
 
 vars <- c(vars, "log(transmission_rate)")
 
-depvars <- c(
-  "peak_time", "peak_preval", "rt_0", "dispersion", "final_preval")
+depvars <- c("peak_time", "peak_preval", "rt_0", "dispersion", "final_preval")
 ```
 
 ## Fixed effect only
 
 ::: {style="font-size:70%"}
-
 ```{r}
 #| echo: false
 #| label: models-fe
 #| output: asis
+library(MASS)
+
 baseline <- ~ I(factor(nettype)) 
 model_peak_time <- update(baseline, paste(depvars[1], "~."))
 model_peak_preval <- update(baseline, paste(depvars[2], "~."))
@@ -660,13 +651,11 @@ texreg::knitreg(
     dispersion = model_dispersion
   ), single.row = TRUE)
 ```
-
 :::
 
 ## Adding simple structural terms
 
 ::: {style="font-size:70%"}
-
 ```{r}
 #| echo: false
 #| output: asis
@@ -693,7 +682,6 @@ texreg::knitreg(
     dispersion = model_dispersion
   ), single.row = TRUE)
 ```
-
 :::
 
 ## Full models
@@ -737,7 +725,6 @@ model_final_preval <- update(baseline, paste(depvars[5], "~."))
 simstats_tmp <- simstats[!grepl("Small-world", nettype),]
 
 
-
 model_peak_preval  <- glm(model_peak_preval, data = simstats_tmp)
 model_peak_time    <- glm(model_peak_time, data = simstats_tmp)
 model_rt           <- glm.nb(model_rt, data = simstats_tmp)
@@ -746,7 +733,6 @@ model_dispersion   <- glm(model_dispersion, data = simstats_tmp[is.finite(disper
 ```
 
 ::: {style="font-size:70%"}
-
 ```{r}
 #| output: asis
 #| echo: false
@@ -758,19 +744,19 @@ texreg::knitreg(
     dispersion = model_dispersion
   ), single.row = TRUE)
 ```
-
 :::
 
 ## Peak time only
 
 ::: {style="font-size:70%"}
-
 ```{r}
 #| label: regress-peaktime
 #| echo: false
 #| output: asis
 #| cache: true
 library(lmtest)
+library(texreg)
+
 model_peak_time0 <- glm(peak_time ~ I(factor(nettype)), data = simstats)
 model_peak_time1 <- glm(peak_time ~ I(factor(nettype)) + igraph_avg_degree, data = simstats)
 # model_peak_time2 <- glm(peak_time ~ I(factor(nettype)) + igraph_avg_degree + igraph_modularity, data = simstats)
@@ -783,13 +769,11 @@ model_peak_time6 <- glm(peak_time ~ I(factor(nettype)) + ergm_twopath + ergm_tri
 
 knitreg(mget(ls(pattern = "model_peak_time[0-9]")), single.row = TRUE)
 ```
-
 :::
 
 ## Peak prevalence only
 
 ::: {style="font-size:70%"}
-
 ```{r}
 #| label: regress-peakpreval
 #| echo: false
@@ -808,19 +792,18 @@ model_peak_preval5 <- glm(peak_preval ~ I(factor(nettype)) + igraph_avg_degree +
 
 knitreg(mget(ls(pattern = "model_peak_preval[0-9]")), single.row = TRUE)
 ```
-
 :::
 
-
-## Reproductive number only 
+## Reproductive number only
 
 ::: {style="font-size:70%"}
-
 ```{r}
 #| label: regress-
 #| echo: false
 #| output: asis
 #| cache: true
+
+library('MASS')
 model_rt0 <- glm.nb(rt_0 ~ I(factor(nettype)), data = simstats)
 model_rt1 <- glm.nb(rt_0 ~ I(factor(nettype)) + igraph_avg_degree, data = simstats)
 model_rt2 <- glm.nb(rt_0 ~ I(factor(nettype)) + igraph_avg_degree + igraph_modularity, data = simstats)
@@ -842,7 +825,6 @@ knitreg(
 ## Generation time
 
 ::: {style="font-size:70%"}
-
 ```{r}
 #| label: regress-gentime
 #| echo: false
@@ -857,7 +839,7 @@ model_gentime1 <- glm(gentime ~ I(factor(nettype)) + igraph_avg_degree, data = s
 
 model_gentime4 <- glm(gentime ~ I(factor(nettype)) + igraph_avg_degree + ergm_twopath, data = simstats)
 
-model_gentime5 <- glm(gentime ~ I(factor(nettype)) + igraph_avg_degree + ergm_twopath + igraph_transitivity, data = simstats)
+model_gentime5 <- glm(gentime ~ I(factor(nettype)) + I(igraph_avg_degree^2) + ergm_twopath + igraph_transitivity, data = simstats)
 
 model_gentime6 <- glm(gentime ~ I(factor(nettype)) + igraph_avg_degree + ergm_twopath + igraph_avg_path_length, data = simstats)
 
@@ -866,18 +848,29 @@ knitreg(
   single.row = TRUE
   )
 ```
-
 :::
+
+
+
+
+
+
+
+
+
+
 
 ## Final regression results
 
 ::: {style="font-size:70%"}
-
 ```{r}
 #| label: regress-final
 #| echo: false
 #| output: asis
-# Better labels
+
+
+#ORIGINAL
+
 
 coefmap <- list(
   "I(factor(nettype))Scale-free" = "Scale-free",
@@ -885,7 +878,8 @@ coefmap <- list(
   "I(factor(nettype))Small-world (p=0.2)" = "Small-world (p=0.2)",
   "I(factor(nettype))Degree-sequence" = "Degree-sequence",
   "I(factor(nettype))Erdos-Renyi" = "Erdos-Renyi",
-  igraph_avg_degree = "Average degree",
+  "igraph_avg_degree" = "Average degree",
+  "I(igraph_avg_degree^2)" = "Average degree^2",
   ergm_twopath = "Two-path",
   igraph_transitivity = "Transitivity",
   ergm_triangle = "Triangles",
@@ -900,6 +894,45 @@ results <- list(
   )
 
 
+# NEW
+
+library('MASS')
+
+model_peak_preval_AO <- glm(peak_preval ~ I(factor(nettype)) + ergm_twopath + igraph_avg_degree + I(igraph_avg_path_length^2), data = simstats)
+
+model_peak_time_AO <- glm(peak_time ~ I(factor(nettype)) + ergm_balance + I(igraph_avg_path_length^2), data = simstats)
+
+model_gentime_AO <- glm(gentime ~ I(factor(nettype)) + ergm_balance + I(igraph_modularity^2) , data = simstats)
+
+model_rt_AO <- glm.nb(rt_0 ~ I(factor(nettype)) + log(ergm_balance), data = simstats)
+
+library(broom)
+library(texreg)
+#library(dplyr)
+
+coefmap <- list(
+  "I(factor(nettype))Scale-free" = "Scale-free",
+  "I(factor(nettype))Small-world (p=0.1)" = "Small-world (p=0.1)",
+  "I(factor(nettype))Small-world (p=0.2)" = "Small-world (p=0.2)",
+  "I(factor(nettype))Degree-sequence" = "Degree-sequence",
+  "I(factor(nettype))Erdos-Renyi" = "Erdos-Renyi",
+  ergm_twopath = "Two-path",
+  ergm_balance = "Balance",
+  igraph_avg_degree = "Average degree",
+  "I(igraph_avg_path_length^2)" = "Average path length^2",
+  "I(igraph_modularity^2)" = "Average modularity^2",
+  "log(ergm_balance)" = "Log(Balance)"
+)
+
+results <- list(
+    `Peak preval` = model_peak_preval_AO,
+    `Peak time`   = model_peak_time_AO,
+    `Gen time`    = model_gentime_AO,
+    Rt            = model_rt_AO
+  )
+
+summary(model_peak_preval_AO)
+
 hreg <- htmlreg(
   results,
   custom.coef.map = coefmap,
@@ -907,13 +940,15 @@ hreg <- htmlreg(
   custom.note = "%stars. In the case of Rt, we used a negative binomial regression model.",
   outer.rules = 0,
   inline.css = TRUE,
-  groups = list(`Fixed effects` = 1:5, `Network structure` = 6:10),
+  groups = list(`Fixed effects` = 1:5, `Network structure` = 6:11),
   caption = NULL
 )
-print(hreg, file = "03-report-regression.html")
+print(hreg, file = "03-report-regression-new-exposed.html")
 
 library(jtools)
+
 coefmap2 <- setNames(names(coefmap), unlist(coefmap))
+
 do.call(
   plot_coefs,
   list(
@@ -921,23 +956,23 @@ do.call(
     coefs = coefmap2,
     groups = list(
       `Fixed effects` = names(coefmap2)[1:5],
-      `Network structure` = names(coefmap2)[6:10]
+      `Network structure` = names(coefmap2)[6:11]
       )
   )) +
   scale_colour_brewer(palette = "Set1")
 
 ggsave(
-  "figures/03-report-coefficients.png", width = 4, height = 2.5,
+  "figures/03-report-coefficients-new-exposed_best-models.png", width = 4, height = 2.5,
   scale = 1.5,
   dpi = 300
   )
 
 screenreg(
   list(
-    `Peak preval` = model_peak_preval5,
-    `Peak time`   = model_peak_time6,
-    `Gen time`    = model_gentime5,
-    Rt             = model_rt5
+    `Peak preval` = model_peak_preval_AO,
+    `Peak time`   = model_peak_time_AO,
+    `Gen time`    = model_gentime_AO,
+    Rt             = model_rt_AO
   ),
   custom.coef.map = coefmap,
   single.row = TRUE,
@@ -945,8 +980,32 @@ screenreg(
 )
 
 
+#### table
+
+install.packages("modelsummary")
+library(modelsummary)
+
+coef_map <- c(
+  "I(factor(nettype))Scale-free" = "Scale-free",
+  "I(factor(nettype))Small-world (p=0.1)" = "Small-world (p=0.1)",
+  "I(factor(nettype))Small-world (p=0.2)" = "Small-world (p=0.2)",
+  "I(factor(nettype))Degree-sequence" = "Degree-sequence",
+  "I(factor(nettype))Erdos-Renyi" = "Erdos-Renyi",
+  "ergm_twopath" = "Two-path",
+  "ergm_balance" = "Balance",
+  "igraph_avg_degree" = "Average degree",
+  "I(igraph_avg_path_length^2)" = "Average path length^2",
+  "I(igraph_modularity^2)" = "Average modularity^2",
+  "log(ergm_balance)" = "Log(Balance)"
+)
+
+install.packages("webshot2")
+library("webshot2")
+
+msummary(results, coef_map = coef_map, stars = c("***" = 0.05, "**" = 0.1, "*" = 0.15),
+         gof_omit = "(R2|Log.Lik.|F|RMSE)",
+         output = "data/03-regression-table-best-models.png")
+
 ```
-
 :::
-
 :::

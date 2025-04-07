@@ -1,10 +1,27 @@
 .Rproj.user
 slides_files
-*.pdf
-*.rds
+#*.pdf
+#*.rds
 *.gz
 *.out
 *.sh
 .Rhistory
 
 /.luarc.json
+
+# Specific files and folders to ignore
+data/chong/
+data/03-model-comparison-linear/
+data/03-model-comparison-logaritmic/
+data/03-model-comparison-quadratic/
+data/03-rt-data/
+data/03-rt-data.csv.gz
+data/03-rt-data.R
+
+02-dataprep-ergm/
+02-dataprep-igraph/
+02-dataprep-sims/
+abm-simulation-lapply/
+_extensions/
+data-raw/
+slurmr-job-550686fc0c7e7/
