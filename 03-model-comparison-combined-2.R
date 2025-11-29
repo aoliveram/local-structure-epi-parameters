@@ -11,6 +11,11 @@ library(grid)
 library(stargazer)
 library(corrplot)
 library(car) # For GVIF
+library(reshape2)
+
+# Start Global Timer
+global_start_time <- Sys.time()
+message(paste("Analysis started at:", global_start_time))
 
 ################################## Data & Functions ----------------------------
 
@@ -239,7 +244,7 @@ run_combined_regression_models <- function(dependent_var, regression_method, out
   time_taken_parall <- end_time - start_time
   print(paste("Time taken for parallel execution: ", time_taken_parall))
   
-  return(NULL)
+  return(models)
 }
 
 Q_best_models <- function(Q_values, all_models, all_variables_combined, porcent) {
@@ -395,7 +400,7 @@ peak_preval_combined_file <- '03-model-comparison-combined-2/03-combined_models_
 
 if (!file.exists(peak_preval_combined_file)) {
   print('Running peak_preval_combined_models')
-  run_combined_regression_models('peak_preval', 'glm', peak_preval_combined_file)
+  peak_preval_combined_models <- run_combined_regression_models('peak_preval', 'glm', peak_preval_combined_file)
 } else {
   print('Loading peak_preval_combined_models')
   peak_preval_combined_models <- readRDS(peak_preval_combined_file)
@@ -419,7 +424,7 @@ peak_time_combined_file <- '03-model-comparison-combined-2/03-combined_models_pe
 
 if (!file.exists(peak_time_combined_file)) {
   print('Running peak_time_combined_models')
-  run_combined_regression_models('peak_time', 'glm', peak_time_combined_file)
+  peak_time_combined_models <- run_combined_regression_models('peak_time', 'glm', peak_time_combined_file)
 } else {
   print('Loading peak_time_combined_models')
   peak_time_combined_models <- readRDS(peak_time_combined_file)
@@ -443,7 +448,7 @@ gentime_combined_file <- '03-model-comparison-combined-2/03-combined_models_gent
 
 if (!file.exists(gentime_combined_file)) {
   print('Running gentime_combined_models')
-  run_combined_regression_models('gentime', 'glm', gentime_combined_file)
+  gentime_combined_models <- run_combined_regression_models('gentime', 'glm', gentime_combined_file)
 } else {
   print('Loading gentime_combined_models')
   gentime_combined_models <- readRDS(gentime_combined_file)
@@ -466,7 +471,7 @@ rep_num_combined_file <- '03-model-comparison-combined-2/03-combined_models_rep_
 
 if (!file.exists(rep_num_combined_file)) {
   print('Running rep_num_combined_models')
-  run_combined_regression_models('rt', 'glm.nb', rep_num_combined_file)
+  rep_num_combined_models <- run_combined_regression_models('rt', 'glm.nb', rep_num_combined_file)
 } else {
   print('Loading rep_num_combined_models')
   rep_num_combined_models <- readRDS(rep_num_combined_file)
@@ -482,3 +487,8 @@ var_count_freq_df_rep_num_combined <- Q_best_rep_num_combined$variable_count_fre
 
 var_freq_long_rep_num_combined <- melt(var_freq_rep_num_combined, id.vars = "Variable", variable.name = "Q", value.name = "Frequency")
 graphic_generator(var_count_freq_df_rep_num_combined, var_freq_long_rep_num_combined, all_variables_combined, 'Reproductive number')
+
+# End Global Timer
+global_end_time <- Sys.time()
+message(paste("Analysis finished at:", global_end_time))
+message(paste("Total duration:", round(difftime(global_end_time, global_start_time, units = "mins"), 2), "minutes"))
