@@ -8,15 +8,10 @@ simstats <- fread("00-data/02-dataprep-results-2.csv.gz")
 # Filter valid simulations (consistent with analysis scripts)
 simstats <- simstats[peak_preval > 1]
 
-# Select all numeric variables of interest
-# We exclude IDs and filenames. We include outcomes and network metrics.
+## Select only network metrics (exclude outcome variables)
 vars_of_interest <- c(
-  # Outcomes
-  "peak_time", "peak_preval", "rt", "rt_mean", "gentime", "final_preval",
-  
   # ERGM metrics
   "ergm_balance", "ergm_triangles", "ergm_twopath",
-  
   # igraph metrics
   "igraph_avg_degree", "igraph_avg_path_length", 
   "igraph_local_transitivity", "igraph_transitivity", 
