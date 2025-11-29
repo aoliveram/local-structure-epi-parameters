@@ -23,9 +23,9 @@ compute_net_stats <- function(fn) {
     net_ergm <- readRDS(fn)
     
     # ERGM Stats
-    # Balance and Triangles
-    ergm_stats <- summary(net_ergm ~ balance + triangle)
-    names(ergm_stats) <- c("balance", "triangles")
+    # Balance, Triangles, and Two-Paths
+    ergm_stats <- summary(net_ergm ~ balance + triangle + twopath)
+    names(ergm_stats) <- c("balance", "triangles", "twopath")
     
     # Convert to igraph
     net_ig <- asIgraph(net_ergm)
@@ -59,11 +59,24 @@ compute_net_stats <- function(fn) {
     
     # 10. Avg Betweenness
     avg_betweenness <- mean(betweenness(net_ig), na.rm = TRUE)
+
+    # 11. Diameter
+    diameter_val <- diameter(net_ig)
+
+    # 12. Avg Closeness
+    avg_closeness <- mean(closeness(net_ig), na.rm = TRUE)
+
+    # 13. Avg Eigenvector Centrality
+    avg_eigenvector <- mean(eigen_centrality(net_ig)$vector, na.rm = TRUE)
+
+    # 14. Density
+    density_val <- edge_density(net_ig)
     
     data.table(
       netfile = fn,
       ergm_balance = ergm_stats["balance"],
       ergm_triangles = ergm_stats["triangles"],
+      ergm_twopath = ergm_stats["twopath"],
       igraph_avg_degree = avg_degree,
       igraph_avg_path_length = avg_path_length,
       igraph_local_transitivity = local_transitivity,
@@ -73,7 +86,11 @@ compute_net_stats <- function(fn) {
       igraph_degree_variance = degree_var_stat,
       igraph_assortativity = assortativity_val,
       igraph_spectral_radius = spectral_radius,
-      igraph_avg_betweenness = avg_betweenness
+      igraph_avg_betweenness = avg_betweenness,
+      igraph_diameter = diameter_val,
+      igraph_avg_closeness = avg_closeness,
+      igraph_avg_eigenvector = avg_eigenvector,
+      igraph_density = density_val
     )
     
   }, error = function(e) {
