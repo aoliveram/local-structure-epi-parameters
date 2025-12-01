@@ -1,0 +1,426 @@
+I have a project that I want to re-run. I presented a poster and and already wrote a paper draft. Please read this description and give me a full summary of the project:
+
+## 1. Project Overview
+
+- **Project Name:** Local Structure Epidemiological Parameters
+- **Main Goal:** Analyze how network structure metrics affect epidemic outcomes using simulated networks and agent-based models.
+- **Key Objective:** Identify which network metrics best predict epidemic indicators (peak prevalence, reproductive number, etc.) using regression models, while avoiding collinearity.
+
+## 2. Data & Code Structure
+
+- **Main Data File:** 02-dataprep-results-2.csv.gz (contains all network metrics and simulation outcomes for 1000 networks)
+- **Scripts:**
+  - 02-dataprep-2.R: Generates network metrics for each simulated network.
+  - 03-model-comparison-combined-2.R: Runs combinatorial regression analysis, checks VIF, and ranks models.
+  - 03-matrix-correlation.R: Calculates and visualizes the correlation matrix for all network metrics.
+- **Output Folders:** 03-model-comparison-combined-2 (contains model results and plots)
+
+## 3. Key Network Metrics (from correlation analysis)
+
+- **Metrics originally considered:** 10+ (degree, path length, clustering, modularity, triangles, balance, variance, assortativity, spectral radius, betweenness, etc.)
+- **Metrics recommended after collinearity analysis:**
+  - `igraph_avg_degree`
+  - `igraph_local_transitivity`
+  - `igraph_avg_path_length`
+  - `igraph_degree_variance`
+  - `igraph_assortativity`
+  - *(Optionally: modularity or eigenvector centrality for diversity)*
+
+## 4. Collinearity Findings
+
+- Many metrics are highly correlated (|r| > 0.8), e.g.:
+  - Degree ≈ Density ≈ Balance
+  - Clustering ≈ Triangles ≈ Transitivity
+  - Path Length ≈ Betweenness ≈ Closeness
+  - Degree Variance ≈ Spectral Radius ≈ Twopath
+- Only a handful of metrics are sufficiently independent for robust regression.
+
+## 5. Regression Analysis Pipeline
+
+- **Script:** 03-model-comparison-combined-2.R
+- **Process:**
+  - Generates all combinations of selected metrics.
+  - Fits regression models for each epidemic outcome.
+  - Filters models with VIF > 10 (to avoid collinearity).
+  - Ranks models by AIC/BIC.
+- **Findings:** With all metrics, only 17 models passed VIF filtering (due to high collinearity). Using the reduced set should yield more usable models.
+
+## 6. Technical Details
+
+- **Language:** R (4.5.0)
+- **Key Libraries:** `data.table`, `igraph`, `ergm`, `parallel`, `car`, `texreg`, `stargazer`, `corrplot`
+- **Environment:** MacBook Pro M4 Pro (8 cores used for parallel processing)
+- **Output:** PDF plots, RData files, CSVs
+
+## 7. Session History Summary
+
+- Explored legacy code and data structure.
+- Added new network metrics (variance, assortativity, spectral radius).
+- Created and ran new data prep and analysis scripts.
+- Diagnosed and fixed collinearity issues.
+- Generated full correlation matrix and recommended a reduced metric set.
+- Ready to update regression analysis with refined variables.
+
+---
+
+## 8. LaTeX Code 
+
+```
+\documentclass[aps,floatfix,nofootinbib,amsmath,amssymb,amsfonts,notitlepage,superscriptaddress, twocolumn]{revtex4-2}
+
+\usepackage[T1]{fontenc}
+\usepackage[latin9]{inputenc}
+\usepackage{lmodern} % load a font with all the characters
+\usepackage{color}
+\usepackage{bbold}
+\usepackage{dsfont}
+\usepackage{graphicx}
+\usepackage[caption=false]{subfig}
+\usepackage[colorlinks]{hyperref}
+\usepackage[bottom]{footmisc}
+\usepackage{enumerate}
+\usepackage{float}
+\usepackage{mathtools}
+
+\usepackage{empheq}
+\usepackage{tikz}
+\usetikzlibrary{patterns,tikzmark, matrix,decorations.pathreplacing, calc, positioning,fit}
+
+\usepackage{hf-tikz}
+
+\usepackage{fancyhdr}
+
+\usepackage[normalem]{ulem}
+\DeclareMathAlphabet\mbc{OMS}{cmsy}{b}{n}
+%%%%%%Balancing last page references
+% \usepackage{balance}
+
+% 
+\begin{document}
+
+
+\global\long\def\eqn#1{\begin{align}#1\end{align}}
+\global\long\def\vec#1{\overrightarrow{#1}}
+\global\long\def\ket#1{\left|#1\right\rangle }
+\global\long\def\bra#1{\left\langle #1\right|}
+\global\long\def\bkt#1{\left(#1\right)}
+\global\long\def\sbkt#1{\left[#1\right]}
+\global\long\def\cbkt#1{\left\{#1\right\}}
+\global\long\def\abs#1{\left\vert#1\right\vert}
+\global\long\def\cev#1{\overleftarrow{#1}}
+\global\long\def\der#1#2{\frac{{d}#1}{{d}#2}}
+\global\long\def\pard#1#2{\frac{{\partial}#1}{{\partial}#2}}
+\global\long\def\re{\mathrm{Re}}
+\global\long\def\im{\mathrm{Im}}
+\global\long\def\dd{\mathrm{d}}
+\global\long\def\ddd{\mathcal{D}}
+
+\global\long\def\avg#1{\left\langle #1 \right\rangle}
+\global\long\def\mr#1{\mathrm{#1}}
+\global\long\def\mb#1{{\mathbf #1}}
+\global\long\def\mc#1{\mathcal{#1}}
+\global\long\def\tr{\mathrm{Tr}}
+\global\long\def\dbar#1{\stackrel{\leftrightarrow}{\mathbf{#1}}}
+
+\global\long\def\nth{$n^{\mathrm{th}}$\,}
+\global\long\def\mth{$m^{\mathrm{th}}$\,}
+\global\long\def\non{\nonumber}
+
+\newcommand{\orange}[1]{{\color{orange} {#1}}}
+\newcommand{\cyan}[1]{{\color{cyan} {#1}}}
+\newcommand{\teal}[1]{{\color{teal} {#1}}}
+\newcommand{\blue}[1]{{\color{blue} {#1}}}
+\newcommand{\yellow}[1]{{\color{yellow} {#1}}}
+\newcommand{\green}[1]{{\color{green} {#1}}}
+\newcommand{\red}[1]{{\color{red} {#1}}}
+
+\global\long\def\todo#1{\cyan{{$\bigstar$ \orange{\bf\sc #1 }}$\bigstar$} }
+
+\global\long\def\addref#1{\orange{{$\bigstar$ \cyan{\bf\sc Add reference }}$\bigstar$} }
+
+
+\global\long\def\redflag#1{\Rflag{first} \red{\bf \sc #1}}
+
+
+\newcommand{\ks}[1]{{\textcolor{teal}{[KS: #1]}}}
+
+\title{How does network structure in Agent-Based Models
+affect epidemiological parameters? A large simulation
+study}
+
+\author{George G. Vega Yon}
+\email{george.vegayon@utah.edu}
+\affiliation{The University of Utah, Salt Lake City, USA.}
+
+\author{An\'ibal Olivera Morales}
+\email{an.oliveram@udd.cl}
+\affiliation{Centro de Investigaci\'on en Complejidad Social, Universidad del Desarrollo, Santiago, Chile.}
+
+
+\begin{abstract}
+\vspace{1cm}
+[Abstract]  
+\vspace{2.5cm}
+
+Write here the abstract.
+\vspace{1cm}
+\end{abstract}
+\maketitle
+
+\section{Introduction}
+
+The heterogeneity in interactions within a population, where not all individuals interact with each other, gives rise to patterns of infection diffusion that are naturally structured in the form of a complex network. This reveals a complexity that cannot be captured by continuous mathematical models \textemdash{} such as those proposed a century ago by Kermack and McKendrick \cite{kermack1927contribution} \textemdash{} despite the fruitful results and significant advancements in compartmental models that have been achieved \cite{Martcheva2015Mathematical, brauer2001mathematical, Li_Yousef_2019, Zhou_Zhao_Ye_2022, Li2014}, including extensions of compartmental models \cite{Miller_Volz_2013}. This limitation in capturing the rich individual-scale details justifies the need to use Agent-Based Models (ABMs) as a fundamental tool for both forecasting and scenario modeling of outbreaks. Generally, these models capture human-to-human interactions within the population, as such interactions typically serve as a medium for disease transmission. Existing disease spread models, such as Susceptible-Infected-Recovered (SIR) or Susceptible-Exposed-Infected-Recovered (SEIR) \cite{Pastor-satorras2015}, are incorporated into ABMs to analyze the dynamics of epidemics under various contexts. In this sense, ABMs become a vital element for public health, as they allow for simulating and predicting the dynamics of disease transmission according to various epidemiological indicators beyond mere prevalence, which can inform decision-making and the implementation of more effective control and prevention strategies. \\
+
+On the other hand, although the small-world property is appropriate for real social networks \cite{talaga2020}, we have identified a disconnect between using this network model and important epidemiological parameters: Small-world networks may result in reproductive numbers with values below one and still feature full transmission (see Figure \ref{fig:repnum_below_1}). This phenomenon has also been addressed in \textcite{Li_Yousef_2019}'s bifurcation analysis in SIR and \cite{Zhou_Zhao_Ye_2022}'s SEIR model with saturated treatment, explaining that such behavior can be corrected by expanding the parameter space of the underlying epidemiological model. Based on the latter, employing only small-world networks as the network structure for ABMs may yield misleading results and conclusions for public health epidemiologists. \\
+
+Furthermore, the main themes explored in the literature focus on specific network models and diffusion mechanisms, and how these affect overall prevalence. Efforts thus far [3-8] have typically concentrated on how the spread of a pathogen is affected by varying only one network property of interest (e.g., degree distribution, assortative mixing, or clustering). For instance, it has been shown \cite{Block2020} that networks with an equal number of nodes and edges, but different network structures (e.g., path length and clustering), lead to different infection curves. \\
+
+However, this approach lacks validity in realistic contexts: if we alter, for example, the variance of the degree distribution, many other metrics may change in a non-trivial manner. In general, altering the structure of a network means simultaneously changing different network characteristics. The correct direction is to run simulations across various network topologies that allow for spanning network parameters in a natural way. This would provide variance in network characteristics without the risk of confounding factors that prevent us from drawing accurate conclusions. \\
+
+Our large-scale simulation moves in this direction, running regression models corrected for various network topologies \textemdash{} scale-free, Erd\"os--R\'enyi, Degree sequence ERGM, and small-world with $p=0.1$ and $p=0.2$ \textemdash{} to address how network structure (in isolation) influences different epidemiological parameters such as the timing and magnitude of transmissions at the peak, the generation time interval (time between infection and first transmission), and the reproductive number (average number of secondary transmissions). Identifying how network structure affects transmission dynamics can be informative for both public health officials and scientists, particularly those utilizing ABMs to simulate the spread of infectious diseases (see \cite{codellaAgentbasedSimulationModel2015, nelsonEconomicAnalysisStrategies2016, rubinSimulationBasedAssessmentStrategies2013, stephensonComparingInterventionStrategies2020, vilchesMultifacetedStrategiesControl2021, smithOptimizingCOVID19Surveillance2020}).
+
+
+\vspace{1cm}
+[Overview of the paper]
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.7\linewidth]{rt-below-1.png}
+    \caption{Caption}
+    \label{fig:repnum_below_1}
+\end{figure}
+
+\section{Literature Review}
+\label{Section : Literature Review}
+
+The main themes explored in the literature surrounding this area involve examining specific network models and diffusion mechanisms, and their effects on overall prevalence \cite{Pastor-satorras2015}. To our knowledge, there is a notably limited number of studies addressing the broader question of how network structural features influence various epidemiological quantities of interest. For instance, among the seminal works, Small and Tse \cite{Small_Tse_2005} investigated the evolution of SARS in a large population by adjusting the rates between SEIR levels using empirical data, but only employed a small-world network. Additionally, Shirley and Rushton \cite{Shirley-2005} analyzed the impact of different topologies on disease spread, characterizing the graphs according to mean degree, mean path length, mean clustering, and mean significance. They established that the spread is faster and more extensive in scale-free networks compared to regular and random networks, with small-world networks demonstrating intermediate behavior. \\
+
+Using a heterogeneous mean-field approximation approach for scale-free (SF) networks, Pastor-Satorras and Vespignani demonstrated that for power-law exponents $2<\gamma\leq 3$, an epidemic threshold does not exist \cite{Pastor-Satorras2001, Pastor-Satorras2002}. \textcite{Guizani2019} examined the speed of pathogen propagation across different types of granularity \textemdash{} Global Population Models (coarse granularity), Spatial-Based Models (medium granularity), and ABM (fine granularity) \textemdash{} for three topologies. They found that small-world and scale-free networks tend to facilitate rapid propagation due to the presence of long-range connections and hubs, respectively. \textcite{Pinto2020} conducted several ABM simulations on five network structures, discovering that those with highly connected hubs (hierarchical and scale-free networks) exhibited the fastest spread, but did not assess other epidemiological indicators. \\
+
+Perhaps the most representative study addressing the gap in the literature comes from the recent work by \textcite{Perez-Ortiz2022}, who conducted simulations on more than 9,000 networks \textemdash{} including random homogeneous networks, scale-free networks, small-world networks, and community-based networks \textemdash{} using several topological metrics (excluding the two-path metric). They found that algebraic connectivity, global efficiency, and mean closeness are the most predictive metrics for the level of propagation. However, the study focuses solely on the prevalence of infection.
+
+\section{Simulation study}
+\label{Section : Simulation study}
+
+In this study, we devised an ABM simulation study using a Susceptible-Exposed-Infected-Removed (SEIR) model as a baseline. Based on real-data networks [INSERT CHARACTERISTICS OF SCHOOL NETWORK], we constructed 1,000 networks of five types of global topologies: scale-free, Erd\"os--R\'enyi, degree sequence ERGM, and small-world with $p=0.1$ and $p=0.2$; all with an equal number of nodes ($N=534$) and similar density ($d\approx 0.0265$). We then generated 20,000 SEIR outbreaks using the epiworldR R package [CITE!]. 
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=3.5 in]{network-figures.png}
+    \caption{Network structures used in this simulation study. All 1,000 networks show an equal number of nodes ($N=534$) and similar density ($d\approx0.0265$). Scale-free, Erd\"os--R\'enyi, and small-world topologies were constructed using the igraph package in R, and degree-sequence networks were constructed using the ergm package.}
+    \label{fig:networkstructures}
+\end{figure}
+
+Figure \ref{fig:networkstructures} shows one example for each network structure. Subsequently, we obtained the main epidemiological indicators: time and magnitude to peak infections, generation interval, and reproductive number. These were regressed with seven local-structural properties of the networks: transitivity, modularity, average degree, average path length, balance, number of triangles, and number of two-paths. We avoided using density as a variable in regressions due to collinearity problems with the average degree. As the latter is often informative for spreading phenomena metrics in the literature, we excluded density as an independent variable. 
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width = 3.45 in]{03-matrix_correlation.pdf}
+    \caption{Matrix correlation of the seven independent variables considered in regressions. Some of them show problematic high correlation, forcing us to discard those regressions that included both independent variables in the same regression formula.}
+    \label{Fig: matrix correlation}
+\end{figure}
+
+Using the simulated data, we computed all possible combinations of linear functional forms of structural properties and fitted generalized linear regression models \textemdash{} with the network structure as fixed effects \textemdash{} over our main epidemiological indicators. 
+
+In our analysis, we employed a systematic approach to generate a comprehensive set of regression formulas. The construction of formulas considers all possible combinations of a given set of variables, applying linear, quadratic, and logarithmic transformations. In general, the total number of formulas generated for a set of $n$ variables can be expressed as:
+\begin{equation}
+\text{Total formulas} = \sum_{k=1}^{n} \left( 1 + 2k \right) \binom{n}{k}
+\end{equation}
+where $\binom{n}{k}$ denotes the number of ways to choose $k$ variables from a total of $n$. The term $1 + 2k$ accounts for the linear, quadratic, and logarithmic forms of each combination, ensuring a comprehensive exploration of potential model specifications. In our case, $n=7$, so we ran 4,092 regressions in total, 1,023 for each epidemiological indicator.
+
+To select the Q best-performing regression models (with $Q \in (10, 20, 30)$), we looked at those with lower scores in AIC and BIC. From this subset, we subtracted the frequency of structural variables and the number of total variables present in those Q models.
+
+\section{SEIR}
+\label{Section: SEIR}
+
+The SEIR model is widely used in public health. Although it is a rather simple version, it provides good insights about fundamental epi quantities, namely, the reproductive number and generation interval: two key numbers for controlling outbreaks. Since we will be looking into a school, we are more on the endemic side.
+
+\section{Network Models}
+\label{Section: Network Models}
+
+[Description of the network data (schools) used for the ERGM]
+
+[Description of each model]
+
+[Paragraph describing the various network statistics we will use. Point to the table for references. The paragraph/list should include some intuition/initial hypothesis of how it will affect some of the epi outcomes]
+
+[Table showing the network statistics we will use. The table should have the following columns: Name of the stat, figure w/ example rep, math representation, brief description, references of papers using this quantity]
+
+\begin{figure*}[t]
+    \centering
+    \subfloat[]{\includegraphics[width=0.49\linewidth]{03_results_Peak_Prevalence.pdf}\label{fig:peak_preval}}
+    \hfill
+    \subfloat[]{\includegraphics[width=0.49\linewidth]{03_results_Peak_Time.pdf}\label{fig:peak_time}}
+    \vfill
+    \subfloat[]{\includegraphics[width=0.49\linewidth]{03_results_Reproductive_number.pdf}\label{fig:rep_num}}
+    \hfill
+    \subfloat[]{\includegraphics[width=0.49\linewidth]{03_results_Generation_time.pdf}\label{fig:gentime}}
+    \caption{Frequencies of variables and number of variables in Q\% best performing regression models, for $Q\in(10,20,30)$.}
+    \label{fig:Figure_2}
+\end{figure*}
+
+\section{Discussion}
+
+[The effects of the different statistics.]
+
+From Fig. \ref{fig:peak_time}, it is clear that the number of triangles, the average path length, modularity, and transitivity are the most prominent predictors of the time to reach the peak in the model. Two variables are distinguished that may be neglected in these models: balance and number of two paths. For the peak prevalence of newly exposed agents, Fig. \ref{fig:peak_preval}, there is an agreement that five is the optimum number of variables. The main plot tells us that the number of two paths, modularity, and transitivity are dispensable variables, leaving the correct amount of variables demanded to fit the optimum model. The relative prevalence of the average path length parameter suggests it is a strong driver of the peak time, a consistent pattern across other models as well, even after correcting for network type.
+
+In reproductive number models, Fig. \ref{fig:rep_num}, three variables are well suited, and, according to the main figure, it is surely a linear combination of this set: balance, average degree, density, and transitivity. The number of triangles and two paths adds little predictive value to a model of this nature. Finally, the small figure in Fig. \ref{fig:gentime} shows that, across every value of Q, the best-performing models were those featuring three predictors. To match this quantity, the main plot suggests that balance, average degree, and density may be the three in play. No clear evidence indicates whether modularity or two-paths should be added as a fourth variable.
+
+We plan to show more in-depth results of our analysis during the presentation of our poster.
+
+\section{Conclusions}
+\label{Section: Conclusions}
+
+
+\section*{Acknowledgments} 
+Any financial support?
+
+
+\appendix
+
+\section{Reproductive number in SEIR simulations}
+\label{App:Rep num}
+
+\begin{figure*}[t]
+    \centering
+    \subfloat[]{\includegraphics[width=0.3\linewidth]{02-reproductive-number-mean-ERGM.png}\label{fig:rep_ERGM}}
+    \hfill
+    \subfloat[]{\includegraphics[width=0.3\linewidth]{02-reproductive-number-mean-Scale-free.png}\label{fig:rep_scale_free}}
+    \hfill
+    \subfloat[]{\includegraphics[width=0.3\linewidth]{02-reproductive-number-mean-Random.png}\label{fig:rep_random}}
+    \vfill
+    \subfloat[]{\includegraphics[width=0.3\linewidth]{02-reproductive-number-mean-Degree-sequence.png}\label{fig:rep_deg_seq}}
+    \hfill
+    \subfloat[]{\includegraphics[width=0.3\linewidth]{02-reproductive-number-mean-Small-world (p=0.1).png}\label{fig:rep_sw01}}
+    \hfill
+    \subfloat[]{\includegraphics[width=0.3\linewidth]{02-reproductive-number-mean-Small-world (p=0.2).png}\label{fig:rep_sw02}}
+    \caption{caption}
+    \label{fig:reproductive number nettype}
+\end{figure*}
+
+\bibliography{bibliography.bib}
+
+\end{document}
+```
+
+---
+
+## 9. CSS 2024 Poster Notes 
+
+```
+Introduction
+Hello,
+In this investigation we seek to understand how the local-structure properties of networks affect different epidemiological parameters.
+---
+Why? 
+Mostly because, in public health, its vital having precise indicators informing the state of the spread of a pathogen,
+---
+And the best way to simulate an outbreak, is using Agent Base Models, that allow the simulation of individual agents, in order to account for network structure in the computation of those epidemiological parameters.
+---
+One of the most important parameters is the Reproductive Number ...that tell us the number of secondary infections caused by a single infected person, so if this number is above 1, the outbreak reaches an epidemic state, and, if it is less than 1, the outbreak dies.
+---
+In addition, this Agent Base Models usually are run only in particular network topology, usually in Small-World Networks.
+But, both SIR and SEIR, shows reproductive numbers below 1 in Small-Worlds networks, and still feature full transmission, 
+---
+so it would be great if we can know which local-structural properties predicts better the actual value of the reproductive number, along with others epidemiological quantities, across several network topologies.
+Therefore this is a large simulation study addressing the broad question of how does network structure affect epidemiological parameters.
+Methods
+To do so, based on real-network-data from classmates in a school, we constructed 1,000 networks of six types of global topologies: scale-free, Erdos Renyi, ERGM, degree-sequence ERGM, and Small-World with p=0.1 and p=0.2, all of those with similar density.
+---
+Then we generated 20,000 SEIR outbreaks over that network topologies, using epiworld R package,
+---
+and we got the main epidemiological indicators from these outbreaks:
+- Peak Prevalence:  which tell us the highest number of cases at the peak of the outbreak,
+- Peak Time:             or when the highest number of cases happened,
+- Generation time:  that tell us how long takes to an infected to infect a susceptible person for the first time,
+- Reproductive number: that is, as we said, the number of infections caused by a single infected person.
+---
+On the other hand, we got seven local-structure properties from the constructed networks (SEE LATEX) :
+- Avg. degree of the network, 				
+- Avg. path length, between all the nodes inside the network, 					rescaled,
+- the grade of Transitivity shown by nodes,
+- the modularity, that searches for communities within a network,
+- the number of Two Paths in the entire network,.. that is, the number of pairs of nodes linked exclusively through an intermediate node, but not between them
+- the number of balanced triads, 								rescaled,
+- and the number of triangles. 									rescaled.
+
+---- ----
+
+So, we regressed each epidemiological indicators, obtained thanks to the SEIR outbreaks, with all possible combinations of linear, logarithmic, and quadratic forms of each local structure properties.
+---
+This expression gives us the total amount of regressions formulas (SEE LATEX), 
+so, if we replace n = 7, we get 1,023 regressions in total for each epidemiological indicator, 
+and as we have 4 indicators, then we have 4,092 regressions in total.
+---
+Now, unfortunately, the variables show high correlation between them, as we can see in the figure,
+so we have to look a way to identify those models with problems in order to drop them.
+---
+So we got the Generalized Variance Inflation Factor (GVIF) from each model, and,
+if the value was above 10, the model was dropped. 
+This results in having 208 models in total.
+---
+Now, based on the Akaike and Bayesian Information Criteria, 
+we look, among all the models, the best performing models. 
+----
+To do this, we normalized the values, 
+and sort the models according to the lowest average between their z-score or AIC and BIC values.
+---
+Finally, in order to construct a good general model for each epidemiological indicator, and at the same time avoiding getting one too specific for this particular data set,
+we looked 
+to the total number of variables of those models, 
+and also frequency of each variable among the best performing models.
+
+Results
+As a result of this procedure (PROCIDIUR), we can select now the Q% best performing models, 
+with Q taken the value of 10, 25, and 50, shown in distinctive colors.
+So now, we can draw some results.
+---
+For example, the best 10% models for Peak Prevalence have only 2 or 3 variables, and the most relevant predictor was the avg. path length, that appears both in the linear and quadratic forms, along with # two paths and the avg. degree. 
+As the quadratic form for avg. path length^2, has more frequency across all Q, then the general model has to have that variable, together with # two paths and avg. degree.
+---
+For Peak Time, the models with 2 variables have more frequency… and once more avg. path length it’s important, along with balance. 
+In fact, this was the best model.
+---
+For Generation Time, a good general model has to have only 1 or 2 variables, and clearly those variables have to be avg. degree and the balance… but they have high correlation… so we have to get balance only, or balance together with [modularity^2], which were the two best models of them all.
+---
+Finally, the Reproductive Number has to have 1 variable only, and that variable has to be balance or degree, whether in his logarithmic or quadratic form. 
+It turns out, that the best model has the non-trivial form of logarithmic balance.
+###########
+Now, if we want to see the value of the betas, of each of these models, we can see this figure…
+---
+In which each model can be identified with a distinctive color.
+---
+So, if we look to the fixed effects first, we can see, for example, for Peak Prevalence, in purple, that the regular-ish networks restrings the number of cases at the peak, in comparison with the random graphs.
+---
+Next, we can see that Scale-Free networks significantly reduces the time required to reach the peak, 
+and, if the network is more similar to a random network, that reduces the rate of propagation.
+---
+Now, for Generation time and Reproductive number, there are not significant differences between the network topologies.
+--- ---
+On the other hand, for the local-structures, we can see that a higher amount of ‘two paths’ translates into higher number of cases at the peak.
+---
+For balance, we see that having more balanced triads, means that the pathogen needs less time to infect a susceptible person (blue), which translates to less required time to reach the peak (green).
+Also, the higher the number of balanced triads, the more the number of people that are infected by a single infected.
+---
+Now, obviously, a higher avg. degree means that the network is more dense, so it make sense expect more cases at the Peak if the avg. degree is higher.
+--- 
+For avg. path length… in this variable we also find quite reasonable results:
+if the nodes are very far between them, then make sense that we have fewer number of cases at the peak, 
+and that more time is needed to reach that peak.
+---
+Finally, it makes sense that, if we have only one big community (modularity) in the network, instead of several of them, we should expect less time to infect a random person.
+
+Conclusions
+As a conclusion, we can say that the recommended models are composed by few variables, with a maximum of three.
+And they show variables with non-trivial forms, such as logarithmic (in the case of rep. number) or quadratic (as all the others indicators). 
+Also, those models emphasize the relevant role of the balance and the avg. path length of the network.
+---
+Obviously, adding more variables could be interesting, especially the variance,
+---
+but we think that with these results shown here, 
+we already have solid ideas of the more accurate and widely applicable regressions models 
+for the main epidemiological indicators 
+that are important to both for network and public health scientist.
+
+```

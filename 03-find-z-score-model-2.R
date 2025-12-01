@@ -1,22 +1,22 @@
 
 all_variables <- c(
-  "ergm_balance", "ergm_triangles", "igraph_avg_path_length",
-  "igraph_avg_degree", "igraph_local_transitivity", "igraph_modularity",
-  "igraph_degree_variance", "igraph_assortativity", "igraph_spectral_radius",
-  "igraph_avg_betweenness"
+  "igraph_avg_degree",
+  "igraph_avg_path_length",
+  "igraph_local_transitivity",
+  "igraph_modularity",
+  "igraph_assortativity",
+  "igraph_degree_variance",
+  "ergm_twopath"
 )
 
 all_variables_combined <- c(
-  "ergm_balance", "I(ergm_balance^2)", "log(ergm_balance)",
-  "ergm_triangles", "I(ergm_triangles^2)", "log(ergm_triangles)",
-  "igraph_avg_path_length", "I(igraph_avg_path_length^2)", "log(igraph_avg_path_length)",
   "igraph_avg_degree", "I(igraph_avg_degree^2)", "log(igraph_avg_degree)",
+  "igraph_avg_path_length", "I(igraph_avg_path_length^2)", "log(igraph_avg_path_length)",
   "igraph_local_transitivity", "I(igraph_local_transitivity^2)", "log(igraph_local_transitivity)",
   "igraph_modularity", "I(igraph_modularity^2)", "log(igraph_modularity)",
-  "igraph_degree_variance", "I(igraph_degree_variance^2)", "log(igraph_degree_variance)",
   "igraph_assortativity", "I(igraph_assortativity^2)", "log(igraph_assortativity)",
-  "igraph_spectral_radius", "I(igraph_spectral_radius^2)", "log(igraph_spectral_radius)",
-  "igraph_avg_betweenness", "I(igraph_avg_betweenness^2)", "log(igraph_avg_betweenness)"
+  "igraph_degree_variance", "I(igraph_degree_variance^2)", "log(igraph_degree_variance)",
+  "ergm_twopath", "I(ergm_twopath^2)", "log(ergm_twopath)"
 )
 
 # Function to calculate percentiles for a list of target models

@@ -57,18 +57,15 @@ simstats[, nettype := factor(
   labels = c("ERGM", "Scale-free", "Small-world (p=0.1)", "Small-world (p=0.2)", "Degree-sequence", "Erdos-Renyi")
 )]
 
-# The 10 Selected Variables
+# The 7 Selected Variables
 all_variables <- c(
   "igraph_avg_degree",
   "igraph_avg_path_length",
   "igraph_local_transitivity",
   "igraph_modularity",
-  "ergm_balance",
-  "ergm_triangles",
-  "igraph_degree_variance",
   "igraph_assortativity",
-  "igraph_spectral_radius",
-  "igraph_avg_betweenness"
+  "igraph_degree_variance",
+  "ergm_twopath"
 )
 
 all_variables_combined <- c(
@@ -76,12 +73,9 @@ all_variables_combined <- c(
   "igraph_avg_path_length", "I(igraph_avg_path_length^2)", "log(igraph_avg_path_length)",
   "igraph_local_transitivity", "I(igraph_local_transitivity^2)", "log(igraph_local_transitivity)",
   "igraph_modularity", "I(igraph_modularity^2)", "log(igraph_modularity)",
-  "ergm_balance", "I(ergm_balance^2)", "log(ergm_balance)",
-  "ergm_triangles", "I(ergm_triangles^2)", "log(ergm_triangles)",
-  "igraph_degree_variance", "I(igraph_degree_variance^2)", "log(igraph_degree_variance)",
   "igraph_assortativity", "I(igraph_assortativity^2)", "log(igraph_assortativity)",
-  "igraph_spectral_radius", "I(igraph_spectral_radius^2)", "log(igraph_spectral_radius)",
-  "igraph_avg_betweenness", "I(igraph_avg_betweenness^2)", "log(igraph_avg_betweenness)"
+  "igraph_degree_variance", "I(igraph_degree_variance^2)", "log(igraph_degree_variance)",
+  "ergm_twopath", "I(ergm_twopath^2)", "log(ergm_twopath)"
 )
 
 # Let's see the factors betwwen the minimum and maximum
@@ -109,8 +103,7 @@ matrix_file <- '03-model-comparison-combined-2/03-matrix_correlation.pdf'
 if (!file.exists(matrix_file)) {
   correlation_matrix <- cor(simstats[, ..all_variables], use = "complete.obs")
   all_variables_labels <- c('Avg. Degree', 'Avg. Path Length', 'Local Transitivity', 'Modularity', 
-                            'Balance', 'Triangles', 'Variance', 'Assortativity', 
-                            'Spectral Radius', 'Avg. Betweenness')
+                            'Assortativity', 'Variance', 'Two-Paths')
   rownames(correlation_matrix) <- all_variables_labels
   colnames(correlation_matrix) <- all_variables_labels
   
@@ -347,14 +340,11 @@ graphic_generator <- function(variable_count_freq_df, var_freq_long, all_variabl
   rename_map$aesthetic <- gsub("avg_", "Avg. ", rename_map$aesthetic)
   rename_map$aesthetic <- gsub("local_", "Local ", rename_map$aesthetic)
   rename_map$aesthetic <- gsub("degree_variance", "Variance", rename_map$aesthetic)
-  rename_map$aesthetic <- gsub("spectral_radius", "Spectral Radius", rename_map$aesthetic)
+  rename_map$aesthetic <- gsub("twopath", "Two-Paths", rename_map$aesthetic)
   rename_map$aesthetic <- gsub("assortativity", "Assortativity", rename_map$aesthetic)
-  rename_map$aesthetic <- gsub("betweenness", "Betweenness", rename_map$aesthetic)
   rename_map$aesthetic <- gsub("path_length", "Path Length", rename_map$aesthetic)
   rename_map$aesthetic <- gsub("transitivity", "Transitivity", rename_map$aesthetic)
   rename_map$aesthetic <- gsub("modularity", "Modularity", rename_map$aesthetic)
-  rename_map$aesthetic <- gsub("balance", "Balance", rename_map$aesthetic)
-  rename_map$aesthetic <- gsub("triangles", "Triangles", rename_map$aesthetic)
   rename_map$aesthetic <- gsub("I\\((.*)\\^2\\)", "[\\1^2]", rename_map$aesthetic)
   rename_map$aesthetic <- gsub("log\\((.*)\\)", "Log(\\1)", rename_map$aesthetic)
   
