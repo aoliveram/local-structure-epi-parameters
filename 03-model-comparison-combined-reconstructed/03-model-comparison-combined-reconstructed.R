@@ -90,10 +90,10 @@ variables_metadata <- data.frame(t(
 ))
 
 # Create output directory
-dir.create("03-model-comparison-combined-3", showWarnings = FALSE)
+dir.create("03-model-comparison-combined-reconstructed", showWarnings = FALSE)
 
 # correlation matrix
-matrix_file <- '03-model-comparison-combined-3/03-matrix_correlation.pdf'
+matrix_file <- '03-model-comparison-combined-reconstructed/03-matrix_correlation.pdf'
 
 if (!file.exists(matrix_file)) {
   correlation_matrix <- cor(simstats[, ..all_variables], use = "complete.obs")
@@ -341,12 +341,12 @@ graphic_generator <- function(variable_count_freq_df, var_freq_long, all_variabl
   print(main_plot)
   
   main_title_clean <- gsub(" ", "_", main_title)
-  ggsave(file.path('03-model-comparison-combined-3', paste0(main_title_clean, ".pdf")), main_plot, width = 5, height = 3.4)
+  ggsave(file.path('03-model-comparison-combined-reconstructed', paste0(main_title_clean, ".pdf")), main_plot, width = 5, height = 3.4)
 }
 
 ################################## Peak Preval Models ----------------------------
 
-peak_preval_combined_file <- '03-model-comparison-combined-3/03-combined_models_peak_preval.RData'
+peak_preval_combined_file <- '03-model-comparison-combined-reconstructed/03-combined_models_peak_preval.RData'
 
 if (!file.exists(peak_preval_combined_file)) {
   print('Running peak_preval_combined_models')
@@ -369,7 +369,7 @@ graphic_generator(var_count_freq_df_peak_preval_combined, var_freq_long_peak_pre
 
 ################################## Peak Time Models ----------------------------
 
-peak_time_combined_file <- '03-model-comparison-combined-3/03-combined_models_peak_time.RData'
+peak_time_combined_file <- '03-model-comparison-combined-reconstructed/03-combined_models_peak_time.RData'
 
 if (!file.exists(peak_time_combined_file)) {
   print('Running peak_time_combined_models')
@@ -392,7 +392,7 @@ graphic_generator(var_count_freq_df_peak_time_combined, var_freq_long_peak_time_
 
 ################################## Gentime Models ------------------------------
 
-gentime_combined_file <- '03-model-comparison-combined-3/03-combined_models_gentime.RData'
+gentime_combined_file <- '03-model-comparison-combined-reconstructed/03-combined_models_gentime.RData'
 
 if (!file.exists(gentime_combined_file)) {
   print('Running gentime_combined_models')
@@ -415,7 +415,7 @@ graphic_generator(var_count_freq_df_gentime_combined, var_freq_long_gentime_comb
 
 ################################## Rep Num Models ------------------------------
 
-rep_num_combined_file <- '03-model-comparison-combined-3/03-combined_models_rep_num.RData'
+rep_num_combined_file <- '03-model-comparison-combined-reconstructed/03-combined_models_rep_num.RData'
 
 if (!file.exists(rep_num_combined_file)) {
   print('Running rep_num_combined_models')
