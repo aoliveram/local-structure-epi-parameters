@@ -1,0 +1,99 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{geometry}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{amsmath}
+
+\geometry{a4paper, margin=1in}
+
+\title{Report on Variable Selection and Model Comparison Strategy}
+\author{GitHub Copilot Analysis}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+This report summarizes the methodological decisions, variable selection process, and rescaling strategies adopted for the comparison of epidemiological regression models. The objective is to identify the structural network features that best predict epidemiological outcomes (Peak Prevalence, Peak Time, Generation Time, and Reproductive Number) using Agent-Based Models (ABM) on various network topologies.
+
+\section{Variable Selection}
+
+\subsection{Available Variables}
+The following structural variables were available from the data preparation phase (`02-dataprep-2.R`):
+
+\begin{itemize}
+    \item \textbf{igraph\_avg\_degree}: Average degree of the network.
+    \item \textbf{igraph\_avg\_path\_length}: Average shortest path length between all pairs of nodes.
+    \item \textbf{igraph\_local\_transitivity}: Average local clustering coefficient.
+    \item \textbf{igraph\_transitivity}: Global transitivity (ratio of triangles to connected triples).
+    \item \textbf{igraph\_modularity}: Strength of division of a network into modules (clusters).
+    \item \textbf{igraph\_assortativity}: Pearson correlation coefficient of degrees between connected nodes.
+    \item \textbf{igraph\_degree\_variance}: Variance of the degree distribution.
+    \item \textbf{ergm\_twopath}: Count of 2-paths (rescaled to percentage of maximum possible).
+    \item \textbf{ergm\_balance}: Count of balanced triads (rescaled).
+    \item \textbf{ergm\_triangles}: Count of triangles (rescaled).
+\end{itemize}
+
+\subsection{Selection Criteria and Multicollinearity}
+To ensure robust regression models, we filtered variables based on theoretical relevance and statistical independence. A key issue identified was the high correlation between \texttt{ergm\_twopath} and \texttt{igraph\_degree\_variance} (Pearson correlation $\approx 0.81$). Including both simultaneously leads to Variance Inflation Factor (VIF) issues, making coefficient interpretation unstable.
+
+\subsection{Analysis Sets}
+To address this, we defined two distinct variable sets for parallel analysis:
+
+\begin{enumerate}
+    \item \textbf{Set 1 (New Var)}: Excludes \texttt{ergm\_twopath} to focus on standard graph-theoretic metrics.
+    \begin{itemize}
+        \item Variables: \texttt{avg\_degree}, \texttt{avg\_path\_length}, \texttt{local\_transitivity}, \texttt{modularity}, \texttt{assortativity}, \texttt{degree\_variance}.
+    \end{itemize}
+    
+    \item \textbf{Set 2 (New Var + Twopaths)}: Includes \texttt{ergm\_twopath} to empirically test its predictive power against \texttt{degree\_variance}.
+    \begin{itemize}
+        \item Variables: All of Set 1 + \texttt{ergm\_twopath}.
+    \end{itemize}
+\end{enumerate}
+
+\section{Data Rescaling}
+To ensure that regression coefficients ($\beta$) are comparable and interpretable (avoiding extremely small or large values), we applied the following rescaling strategies based on the variable ranges:
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}llp{6cm}@{}}
+\toprule
+\textbf{Variable} & \textbf{Transformation} & \textbf{Rationale} \\ \midrule
+\texttt{igraph\_degree\_variance} & $x / 100$ & Raw values ranged up to $\sim 168$, resulting in coefficients of order $10^{-4}$. Dividing by 100 increases $\beta$ by a factor of 100. \\
+\texttt{igraph\_assortativity} & None (Raw) & Originally multiplied by 100, but this resulted in very small coefficients. Reverting to the raw scale ($-1$ to $1$) yields larger, more comparable $\beta$ values. \\
+\texttt{igraph\_local\_transitivity} & $x \times 100$ & Converted to percentage (0-100) for readability. \\
+\texttt{igraph\_modularity} & $x \times 100$ & Converted to percentage (0-100) for readability. \\
+\texttt{ergm\_twopath} & \% of Max & Already scaled as a percentage of the theoretical maximum. \\
+\bottomrule
+\end{tabular}
+\caption{Rescaling strategies for independent variables.}
+\end{table}
+
+\section{Model Comparison Methodology}
+
+\subsection{Model Generation}
+For each dependent variable (Peak Prevalence, Peak Time, Generation Time, $R_t$), we generated a comprehensive set of candidate models including:
+\begin{itemize}
+    \item \textbf{Linear terms}: $y \sim x$
+    \item \textbf{Quadratic terms}: $y \sim x + x^2$ (to capture non-linear effects)
+    \item \textbf{Logarithmic terms}: $y \sim \log(x)$ (for strictly positive variables with heavy tails)
+\end{itemize}
+All models controlled for network topology type (\texttt{nettype}).
+
+\subsection{Selection Algorithm}
+1.  \textbf{VIF Filtering}: Models with a Generalized VIF $> 10$ were discarded to prevent multicollinearity.
+2.  \textbf{Ranking}: Models were ranked based on the mean Z-score of their AIC and BIC values.
+3.  \textbf{Top 10 Selection}: The best 10 models were selected for the final \LaTeX{} tables.
+
+\section{Key Observations}
+Preliminary results from the \textit{Peak Prevalence} analysis (using Set 2) indicate:
+\begin{itemize}
+    \item Both \texttt{ergm\_twopath} and \texttt{igraph\_degree\_variance} appear frequently in the top 10 models.
+    \item \textbf{Mutual Exclusivity}: They never appear in the same model. This confirms the hypothesis that they compete to explain the same variance (structural heterogeneity).
+    \item The rescaling has successfully brought coefficients into a comparable range (e.g., $\beta \approx 0.02 - 2.0$ rather than $0.0002$).
+\end{itemize}
+
+\end{document}

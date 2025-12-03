@@ -1,1 +1,0 @@
-# scp ...@notchpeak2.chpc.utah.edu:~/vegayon-group1/george/abm-networks-epi/data/Simulated_1000_networks.rds .
