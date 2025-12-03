@@ -129,9 +129,18 @@ if (file.exists(fn_sim)) {
       
       rt_idx     <- with(x$repnum, which.min(abs(peak_time - date)))
       rt         <- x$repnum$avg[rt_idx]
+      rt_dispersion <- 1/x$repnum$sd[rt_idx]^2
       
       r_mean     <- with(x$repnum, sum(avg * n, na.rm = TRUE)/sum(n, na.rm = TRUE))
       
+      #  Rt per day
+      rt_0 <- with(x$repnum[x$repnum$date == 0,,drop=FALSE], avg)
+      rt_1 <- with(x$repnum[x$repnum$date == 1,,drop=FALSE], avg)
+      rt_2 <- with(x$repnum[x$repnum$date == 2,,drop=FALSE], avg)
+      rt_3 <- with(x$repnum[x$repnum$date == 3,,drop=FALSE], avg)
+      rt_4 <- with(x$repnum[x$repnum$date == 4,,drop=FALSE], avg)
+      rt_5 <- with(x$repnum[x$repnum$date == 5,,drop=FALSE], avg)
+
       gentime <- with(x$gentime, sum(avg * n, na.rm = TRUE)/sum(n, na.rm = TRUE))
       
       final_preval <- with(x$history, tail(counts[state == "Removed"], 1))
@@ -143,6 +152,13 @@ if (file.exists(fn_sim)) {
         peak_preval       = peak_preval,
         rt                = rt,
         rt_mean           = r_mean,
+        rt_0              = if (length(rt_0)) rt_0 else NA,
+        rt_1              = if (length(rt_1)) rt_1 else NA,
+        rt_2              = if (length(rt_2)) rt_2 else NA,
+        rt_3              = if (length(rt_3)) rt_3 else NA,
+        rt_4              = if (length(rt_4)) rt_4 else NA,
+        rt_5              = if (length(rt_5)) rt_5 else NA,
+        rt_dispersion        = if (length(dispersion)) rt_dispersion else NA,
         gentime           = gentime,
         final_preval      = final_preval
       )
