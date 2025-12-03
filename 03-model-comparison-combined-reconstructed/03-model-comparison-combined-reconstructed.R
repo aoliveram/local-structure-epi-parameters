@@ -415,11 +415,11 @@ graphic_generator(var_count_freq_df_gentime_combined, var_freq_long_gentime_comb
 
 ################################## Rep Num Models ------------------------------
 
-rep_num_combined_file <- '03-model-comparison-combined-reconstructed/03-combined_models_rep_num.RData'
+rep_num_combined_file <- '03-model-comparison-combined-reconstructed/03-combined_models_rep_num_0.RData'
 
 if (!file.exists(rep_num_combined_file)) {
   print('Running rep_num_combined_models')
-  rep_num_combined_models <- run_combined_regression_models('rt', 'glm.nb', rep_num_combined_file)
+  rep_num_combined_models <- run_combined_regression_models('rt_0', 'glm.nb', rep_num_combined_file)
 } else {
   print('Loading rep_num_combined_models')
   rep_num_combined_models <- readRDS(rep_num_combined_file)
