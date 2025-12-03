@@ -1,4 +1,4 @@
-I have a project that I want to re-run. I presented a poster and and already wrote a paper draft. Please read this description and give me a full summary of the project:
+I have a project that I want to re-run. I presented a poster and and already wrote a paper draft. My current goal is to identify why the new set of scripts return different results compared with the old scripts. But first please read this description and give me a full summary of the project:
 
 ## 1. Project Overview
 
@@ -14,17 +14,23 @@ I have a project that I want to re-run. I presented a poster and and already wro
   - 03-model-comparison-combined-2.R: Runs combinatorial regression analysis, checks VIF, and ranks models.
   - 03-matrix-correlation.R: Calculates and visualizes the correlation matrix for all network metrics.
 - **Output Folders:** 03-model-comparison-combined-2 (contains model results and plots)
+- **Old Scripts:**
+  - 03-model-comparison-combined-copy.R: Runs combinatorial regression analysis, original script.
+  - 03-matrix-vif-analysis.R: checks VIF, and ranks models, original script.
+- **Old Scripts Output Folders:** data/03-model-comparison-combined-copy (contains model results and plots)
 
 ## 3. Key Network Metrics (from correlation analysis)
 
-- **Metrics originally considered:** 10+ (degree, path length, clustering, modularity, triangles, balance, variance, assortativity, spectral radius, betweenness, etc.)
+- **Total amount of Metric:** 10+ (degree, path length, clustering, modularity, triangles, balance, variance, assortativity, spectral radius, betweenness, etc.)
+- **Metrics Old scripts**: 
+"ergm_balance", 
+  "ergm_triangle", "ergm_twopath", "igraph_avg_path_length", "igraph_avg_degree", "igraph_transitivity", "igraph_modularity".
 - **Metrics recommended after collinearity analysis:**
   - `igraph_avg_degree`
   - `igraph_local_transitivity`
   - `igraph_avg_path_length`
   - `igraph_degree_variance`
   - `igraph_assortativity`
-  - *(Optionally: modularity or eigenvector centrality for diversity)*
 
 ## 4. Collinearity Findings
 
