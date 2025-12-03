@@ -182,6 +182,7 @@ run_combined_regression_models <- function(dependent_var, regression_method, out
       list(
         formula = formula,
         coeff = coef(model),
+        p_vals = coef(summary(model))[, 4],
         aic = AIC(model),
         bic = BIC(model)
       )
@@ -223,6 +224,7 @@ Q_best_models <- function(Q_values, all_models, all_variables_combined, porcent)
   formulas_all_models <- as.character(unlist(lapply(all_models, function(x) x$formula)))
   
   all_models_df <- as.data.frame(list(
+    id = 1:length(all_models),
     aic = aic_values,
     bic = bic_values,
     formula = formulas_all_models
@@ -251,6 +253,7 @@ Q_best_models <- function(Q_values, all_models, all_variables_combined, porcent)
     }
     
     top_Q_formulas[[paste0("top_Q_formulas_Q", Q)]] <- all_models_df$formula[1:num_models]
+    top_Q_indices <- all_models_df$id[1:num_models]
     
     freq <- vector("numeric", length(all_variables_combined))
     names(freq) <- all_variables_combined
@@ -258,8 +261,21 @@ Q_best_models <- function(Q_values, all_models, all_variables_combined, porcent)
     for (i in seq_along(all_variables_combined)) {
       var <- all_variables_combined[i]
       count <- 0
-      for (term in top_Q_formulas[[paste0("top_Q_formulas_Q", Q)]]) {
-        if (var %in% labels(terms(as.formula(term)))) {count <- count + 1}
+      
+      for (idx in top_Q_indices) {
+        model_obj <- all_models[[idx]]
+        # Check if variable is significant (p < 0.05)
+        # We check if the variable name exists in the p_vals vector and is significant
+        if (!is.null(model_obj$p_vals) && var %in% names(model_obj$p_vals)) {
+          if (model_obj$p_vals[var] < 0.05) {
+            count <- count + 1
+          }
+        } else {
+          # Fallback for old .RData files without p_vals or if var not found in p_vals
+          if (is.null(model_obj$p_vals)) {
+             if (var %in% labels(terms(as.formula(model_obj$formula)))) {count <- count + 1}
+          }
+        }
       }
       freq[i] <- count
     }
