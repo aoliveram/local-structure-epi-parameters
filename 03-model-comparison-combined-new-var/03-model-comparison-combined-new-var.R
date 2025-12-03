@@ -38,7 +38,10 @@ simstats$ergm_triangles <- (simstats$ergm_triangles / triangle_complete) * 100
 simstats$igraph_local_transitivity <- simstats$igraph_local_transitivity * 100
 simstats$igraph_transitivity <- simstats$igraph_transitivity * 100 # Added for consistency
 simstats$igraph_modularity <- simstats$igraph_modularity * 100
-simstats$igraph_assortativity <- simstats$igraph_assortativity * 100
+# simstats$igraph_assortativity <- simstats$igraph_assortativity * 100 # Removed to keep coefficients larger
+
+# Rescale Variance (Divide by 100 to make coefficients comparable)
+simstats$igraph_degree_variance <- simstats$igraph_degree_variance / 100
 
 # Renaming
 vallabs <- c(
@@ -417,7 +420,7 @@ rep_num_combined_file <- '03-model-comparison-combined-new-var/03-combined_model
 
 if (!file.exists(rep_num_combined_file)) {
   print('Running rep_num_combined_models')
-  rep_num_combined_models <- run_combined_regression_models('rt', 'glm.nb', rep_num_combined_file)
+  rep_num_combined_models <- run_combined_regression_models('rt_0', 'glm.nb', rep_num_combined_file)
 } else {
   print('Loading rep_num_combined_models')
   rep_num_combined_models <- readRDS(rep_num_combined_file)
