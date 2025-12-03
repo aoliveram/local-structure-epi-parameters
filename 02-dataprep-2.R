@@ -11,6 +11,7 @@ set.seed(1231)
 
 # Files
 networks <- list.files("00-data/graphs", pattern = "[0-9]+-(ergm|sf|swp[0-9]{2}|degseq|er)\\.rds$", full.names = TRUE)
+simfiles <- list.files("00-data/sims", pattern = "-sim-[0-9]+\\.rds$", full.names = TRUE)
 fn_sim <- "00-data/02-dataprep-sim.csv.gz"
 fn_out <- "00-data/02-dataprep-results-2.csv.gz"
 
@@ -111,13 +112,25 @@ net_stats[, netid   := gsub(".+/([0-9]+-[a-z0-9]+)\\.rds", "\\1", netfile)]
 # 2. Simulation Results
 message("Processing simulation results...")
 
+# Check if existing file is valid
 if (file.exists(fn_sim)) {
   message("Loading existing simulation results...")
   simres <- fread(fn_sim)
+  if (!"simfile" %in% names(simres)) {
+    message("Existing results file is missing 'simfile' column. Recomputing...")
+    simres <- NULL
+  }
 } else {
+  simres <- NULL
+}
+
+if (is.null(simres)) {
   message("Computing simulation results from scratch (this might take a while)...")
-  simfiles <- list.files("00-data/sims", pattern = "-sim-[0-9]+\\.rds$", full.names = TRUE)
   
+  if (length(simfiles) == 0) {
+    stop("No simulation files found in 00-data/sims matching pattern.")
+  }
+
   process_sim <- function(fn) {
     tryCatch({
       x <- readRDS(fn)
@@ -129,7 +142,7 @@ if (file.exists(fn_sim)) {
       
       rt_idx     <- with(x$repnum, which.min(abs(peak_time - date)))
       rt         <- x$repnum$avg[rt_idx]
-      rt_dispersion <- 1/x$repnum$sd[rt_idx]^2
+      dispersion <- 1/x$repnum$sd[rt_idx]^2
       
       r_mean     <- with(x$repnum, sum(avg * n, na.rm = TRUE)/sum(n, na.rm = TRUE))
       
@@ -158,18 +171,29 @@ if (file.exists(fn_sim)) {
         rt_3              = if (length(rt_3)) rt_3 else NA,
         rt_4              = if (length(rt_4)) rt_4 else NA,
         rt_5              = if (length(rt_5)) rt_5 else NA,
-        rt_dispersion        = if (length(dispersion)) rt_dispersion else NA,
+        dispersion        = if (length(dispersion)) dispersion else NA,
         gentime           = gentime,
         final_preval      = final_preval
       )
-    }, error = function(e) return(NULL))
+    }, error = function(e) {
+      message(paste("Error processing", fn, ":", conditionMessage(e)))
+      return(NULL)
+    })
   }
   
   simres_list <- mclapply(simfiles, process_sim, mc.cores = ncores)
   simres <- rbindlist(simres_list)
   
+  if (nrow(simres) == 0) {
+    stop("No simulation results were processed successfully. Check the error messages above.")
+  }
+
   # Save sim results just in case
   fwrite(simres, fn_sim, compress = "auto")
+}
+
+if (!"simfile" %in% names(simres)) {
+  stop("The 'simfile' column is missing from the results.")
 }
 
 simres[, netid := gsub(".+/([0-9]+-[a-z0-9]+)-sim.+", "\\1", simfile)]
