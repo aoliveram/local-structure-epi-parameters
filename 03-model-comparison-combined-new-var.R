@@ -457,3 +457,4 @@ graphic_generator(var_count_freq_df_rep_num_combined, var_freq_long_rep_num_comb
 global_end_time <- Sys.time()
 message(paste("Analysis finished at:", global_end_time))
 message(paste("Total duration:", round(difftime(global_end_time, global_start_time, units = "mins"), 2), "minutes"))
+A

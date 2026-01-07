@@ -1,0 +1,86 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{geometry}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{graphicx}
+
+\geometry{a4paper, margin=1in}
+
+\title{Report on Variable Selection, Rescaling, and Model Comparison Methodology}
+\author{GitHub Copilot Analysis}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+This report details the methodological framework established for comparing epidemiological regression models. It focuses on the rationale behind variable selection, the necessity of data rescaling for interpretability, and the refinement of the model ranking algorithm to ensure that only statistically relevant predictors are highlighted.
+
+\section{Variable Selection Strategy}
+
+\subsection{The Multicollinearity Challenge}
+A critical challenge identified during the exploratory phase was the high correlation ($\rho \approx 0.81$) between \texttt{ergm\_twopath} and \texttt{igraph\_degree\_variance}. Theoretically, both metrics capture the heterogeneity of the degree distribution:
+\begin{itemize}
+    \item \textbf{Degree Variance}: A direct statistical measure of the spread of node degrees.
+    \item \textbf{Two-Paths}: A structural count of paths of length 2, which is analytically related to the second moment of the degree distribution ($\sum k^2$).
+\end{itemize}
+Including both in a single regression model introduces severe multicollinearity, inflating standard errors and rendering coefficient interpretation unstable (high Variance Inflation Factor, VIF).
+
+\subsection{Resolution: Parallel Analysis Sets}
+To resolve this, we established two distinct analysis streams. This approach allows us to empirically compare the predictive power of these competing metrics without violating statistical assumptions.
+
+\begin{enumerate}
+    \item \textbf{Set 1: Standard Metrics (New Var)}
+    \begin{itemize}
+        \item \textbf{Composition}: Includes \texttt{avg\_degree}, \texttt{avg\_path\_length}, \texttt{local\_transitivity}, \texttt{modularity}, \texttt{assortativity}, and \textbf{\texttt{degree\_variance}}.
+        \item \textbf{Rationale}: This set prioritizes standard graph-theoretic metrics commonly found in network science literature. It serves as the baseline for comparison.
+    \end{itemize}
+    
+    \item \textbf{Set 2: Structural Metrics (New Var + Twopaths)}
+    \begin{itemize}
+        \item \textbf{Composition}: Includes all variables from Set 1 plus \textbf{\texttt{ergm\_twopath}}.
+        \item \textbf{Rationale}: This set tests whether the explicit count of structural motifs (2-paths) offers superior predictive power over the statistical summary (variance).
+        \item \textbf{Observation}: In the top-performing models, these two variables exhibit \textbf{mutual exclusivity}—they never appear together, confirming they compete to explain the same variance.
+    \end{itemize}
+\end{enumerate}
+
+\section{Data Rescaling for Interpretability}
+To ensure that regression coefficients ($\beta$) are comparable and human-readable, we applied specific transformations. Without rescaling, variables with large raw values (like variance) yield infinitesimally small coefficients (e.g., $0.0002$), while bounded variables (like assortativity) might yield disproportionately large ones depending on the scale.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}llp{7cm}@{}}
+\toprule
+\textbf{Variable} & \textbf{Transformation} & \textbf{Justification} \\ \midrule
+\texttt{igraph\_degree\_variance} & $x / 100$ & Raw variance reached $\sim 168$. Dividing by 100 scales the coefficient up by a factor of 100, moving it from $\sim 10^{-4}$ to $\sim 10^{-2}$. \\
+\texttt{igraph\_assortativity} & None (Raw) & Originally scaled by 100, but this resulted in negligible coefficients. Reverting to the raw $[-1, 1]$ range yields larger, more comparable $\beta$ values. \\
+\texttt{igraph\_local\_transitivity} & $x \times 100$ & Converted to percentage (0-100) for consistency with other percentage-based metrics. \\
+\texttt{igraph\_modularity} & $x \times 100$ & Converted to percentage (0-100). \\
+\texttt{ergm\_twopath} & \% of Max & Already normalized as a percentage of the theoretical maximum for the given network size. \\
+\bottomrule
+\end{tabular}
+\caption{Rescaling strategies applied to independent variables.}
+\end{table}
+
+\section{Methodological Refinement: Significance Filtering}
+
+\subsection{The "Irrelevant Variable" Problem}
+A flaw was identified in the initial frequency analysis of the "Best $Q\%$ Models". The original algorithm simply counted how often a variable appeared in the top models. However, a high-performing model might include a non-significant variable (e.g., $p > 0.05$) that contributes nothing to the model's fit but is "carried along" by other strong predictors.
+\begin{itemize}
+    \item \textbf{Consequence}: Irrelevant variables could appear to be "top predictors" simply because they were present in good models, misleading the interpretation of variable importance.
+\end{itemize}
+
+\subsection{The Solution: Significance-Weighted Frequency}
+We updated the analysis script (`03-model-comparison-combined-new-var.R`) to implement a strict filter:
+\begin{quote}
+    \textit{A variable is counted in the frequency plots if and only if it is present in a top $Q\%$ model \textbf{AND} its p-value in that specific model is $< 0.05$.}
+\end{quote}
+This ensures that the frequency charts reflect \textbf{true predictive contribution} rather than mere presence. This refinement provides a much more rigorous basis for discussing which structural features drive epidemiological dynamics.
+
+\section{Conclusion}
+The combination of these three strategies—parallel variable sets to handle multicollinearity, targeted rescaling for coefficient comparability, and significance filtering for robust importance ranking—provides a solid statistical foundation for the final results. The generated \LaTeX{} tables and frequency plots now accurately reflect the most significant structural drivers of the epidemic.
+
+\end{document}
