@@ -197,8 +197,8 @@ create_matrix_plot_v3 <- function(dep_var_key, dep_var_label) {
   freq_long$base_var <- factor(freq_long$base_var, levels = ordered_vars)
   
   # --- Visualization Colors ---
-  # Functional Forms (Sober Palette - High Contrast: Dark Blue, Rust, Deep Green)
-  colors_func <- c("Linear" = "#2171b5", "Quadratic" = "#d94801", "Logarithmic" = "#238b45") 
+  # Functional Forms (Vivid Palette: Blue, Rust, Bright Green)
+  colors_func <- c("Linear" = "#1F77B4", "Quadratic" = "#d94801", "Logarithmic" = "#33a02c") 
   
   # Q Groups (Greyscale for Histogram)
   colors_Q <- c("freq_Q10" = "gray20", "freq_Q25" = "gray50", "freq_Q50" = "gray80")
@@ -225,6 +225,7 @@ create_matrix_plot_v3 <- function(dep_var_key, dep_var_label) {
     # Annotate Lines (Labels at bottom)
     annotate("text", x = n_top10 - 0.2, y = 0.7, label = "Top 10%", fontface = "bold", size = 6, hjust = 1) + 
     annotate("text", x = n_top25 - 0.2, y = 0.7, label = "Top 25%", fontface = "bold", size = 6, hjust = 1) +
+    annotate("text", x = n_top50 - 0.2, y = 0.7, label = "Top 50%", fontface = "bold", size = 6, hjust = 1) +
     
     labs(x = "Model Rank", y = NULL, color = "Functional Form : ", shape = "Functional Form : ") +
     theme_bw() +
@@ -262,7 +263,7 @@ create_matrix_plot_v3 <- function(dep_var_key, dep_var_label) {
       legend.text = element_text(size = 20),
       legend.margin = margin(t = 20)
     ) +
-    guides(fill = guide_legend(title = "Top Q% : ", nrow = 1, reverse = TRUE)) # Reverse to visually match stack order
+    guides(fill = guide_legend(title = "Top : ", nrow = 1, reverse = TRUE)) # Reverse to visually match stack order
 
   # Extract legends
   legend_left <- get_legend(p_matrix)
